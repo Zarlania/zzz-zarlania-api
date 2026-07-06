@@ -1,8 +1,12 @@
 # AGENTS.md — Zarlania API
 
-Shared instructions for AI agents working in this repo (Codex, CodeRabbit, and the
-Claude CLI). For implementation conventions, **CLAUDE.md and the accepted ADRs are the
-authoritative, binding sources** — this file governs how changes are *reviewed*.
+Instructions for **AI code reviewers** on this repo (CodeRabbit, Codex, and any other
+automated reviewer). This file governs *how thoroughly and in what spirit* to review — it
+does **not** define the coding standards themselves.
+
+- **Source of truth is CLAUDE.md and the accepted ADRs.** Judge changes against those,
+  not against this file. This file only sets the review posture.
+- **Implementers:** your entry point is **CLAUDE.md**, not this file.
 
 ## Review posture: assume the author missed something
 
@@ -55,8 +59,23 @@ Flag concerns across all of these; don't stop at the first category:
   change's spec/plan — `docs/superpowers/` is frozen historical record.
 - Ignore `docs/ai-prompts/` entirely; it is a private scratchpad, not documentation.
 
-## Calibrating granularity
+## Severity labels
 
 Err toward more comments, not fewer — surface anything questionable so a second set of
-eyes can confirm it. Keep severity legible: prefix minor style/preference remarks as
-**nit:** so they're easy to triage separately from correctness and security findings.
+eyes can confirm it. Raise every concern, and tag each with its severity so the author
+can triage. Nothing is suppressed by tier; nits still get raised, just labeled as such.
+
+- 🔴 **Critical** — bugs, security holes, data loss, or ADR violations that must block
+  merge.
+- 🟠 **Major** — significant maintainability, scalability, or performance problems.
+- 🟡 **Minor** — smaller correctness issues or convention deviations.
+- ⚪ **Nit** — style and readability preferences.
+
+## How to raise a finding
+
+- Be **specific and actionable**: point to the file and line, say why it matters, and
+  suggest a concrete fix.
+- **Cite the rule** — reference the relevant ADR or CLAUDE.md line when one applies
+  (`./scripts/adr show <id>`), so the author can verify quickly.
+- **If unsure, say so and flag it anyway.** Surfacing a possible issue for a human to
+  confirm beats staying silent and letting it ship.
