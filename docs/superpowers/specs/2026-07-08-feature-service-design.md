@@ -149,16 +149,26 @@ duplicated in reference docs.
 
 ### OpenAPI visibility
 
-Two `GroupedOpenApi` beans in the existing `config` package:
+The root `/v3/api-docs` document keeps its URL (ADR-0003) and is filtered by a
+springdoc `OpenApiCustomizer` that strips every `/api/admin/**` path. Swagger UI
+continues to read the root document, so no group selector appears in production.
 
-- **public** — all paths except `/api/admin/**`; serves the existing `/v3/api-docs`
-  and Swagger UI unchanged.
-- **admin** — `/api/admin/**` only, served at `/v3/api-docs/admin`, not listed in the
-  Swagger UI.
+A machine-readable admin document exists only when `zarlania.docs.expose-admin=true`
+(default `false`): the property conditionally registers springdoc `GroupedOpenApi`
+beans — `admin` (`/v3/api-docs/admin`, admin paths only) and `public`
+(`/v3/api-docs/public`, admin excluded). In production the property stays off and no
+admin contract is published anywhere; developers enable it locally to browse the
+admin docs. Rationale, verified empirically in this repo: springdoc auto-lists every
+registered group in `/v3/api-docs/swagger-config` and has no supported way to hide a
+group from the Swagger UI selector (springdoc-openapi issue #2023), so an always-on
+but unlisted admin group is not achievable — conditional registration is the
+standard workaround. A plain (non-global) `OpenApiCustomizer` was verified to filter
+only the root document, leaving group documents untouched.
 
 This also keeps toggle names (unreleased-feature roadmap) out of the public document.
 Recorded as a repo-wide convention in its own ADR (refining, not contradicting,
-ADR-0003: the admin surface stays machine-documented, just not advertised).
+ADR-0003: the admin surface stays machine-documentable, just not published by
+default).
 
 ### Error handling
 
@@ -187,8 +197,9 @@ repositories = integration-only):
 
 - **Controller (e2e):** list/get/put/delete flows through the full stack; validation
   400s (percentage −1, 101, missing); 404s for unknown toggle and unknown org;
-  problem+json shape; public `/v3/api-docs` contains no `/api/admin/**` path while
-  `/v3/api-docs/admin` does.
+  problem+json shape; public `/v3/api-docs` contains no `/api/admin/**` path;
+  `/v3/api-docs/admin` is 404 by default and serves the admin paths when
+  `zarlania.docs.expose-admin=true`.
 - **Service (unit):** override-beats-global precedence; 0 and 100 never draw
   randomness; partial true/false branches via the injected `DoubleSupplier`; trace
   memoization returns the first answer even after state changes; no-trace-context
