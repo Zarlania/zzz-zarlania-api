@@ -128,6 +128,7 @@
 					     to run the app against one. Lives here (committed, one place, auto-applied) so
 					     no one has to remember a -D flag per run. -->
 					<systemPropertyVariables>
+						<!-- DATABASE_TO_LOWER=TRUE completes the PostgreSQL emulation: H2 folds unquoted identifiers to UPPERCASE by default even under MODE=PostgreSQL, so this makes identifier and constraint-violation-message casing match production Postgres's lowercase folding — repo-wide, for all tests, deliberately. -->
 						<spring.datasource.url>jdbc:h2:mem:zarlania-${surefire.forkNumber};DB_CLOSE_DELAY=-1;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE</spring.datasource.url>
 					</systemPropertyVariables>
 				</configuration>
