@@ -143,7 +143,7 @@ class FeatureToggleServiceUnitTest {
     assertThat(service.isEnabled(FEATURE)).isTrue();
 
     traceId = "trace-2";
-    lenient().when(toggleRepository.findByName(FEATURE.name())).thenReturn(Optional.of(toggle(0)));
+    when(toggleRepository.findByName(FEATURE.name())).thenReturn(Optional.of(toggle(0)));
     assertThat(service.isEnabled(FEATURE)).isFalse();
   }
 
@@ -154,7 +154,7 @@ class FeatureToggleServiceUnitTest {
     FeatureToggleService service = service();
     assertThat(service.isEnabled(FEATURE)).isTrue();
 
-    lenient().when(toggleRepository.findByName(FEATURE.name())).thenReturn(Optional.of(toggle(0)));
+    when(toggleRepository.findByName(FEATURE.name())).thenReturn(Optional.of(toggle(0)));
     assertThat(service.isEnabled(FEATURE)).isFalse();
   }
 
