@@ -26,7 +26,7 @@ public class CleanDatabaseTestExecutionListener extends AbstractTestExecutionLis
 
   private static final String SELECT_APPLICATION_TABLES =
       "SELECT table_name FROM information_schema.tables "
-          + "WHERE table_schema = 'PUBLIC' AND table_type = 'BASE TABLE' "
+          + "WHERE UPPER(table_schema) = 'PUBLIC' AND table_type = 'BASE TABLE' "
           + "AND UPPER(table_name) <> 'FLYWAY_SCHEMA_HISTORY'";
 
   @Override
