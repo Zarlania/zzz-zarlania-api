@@ -29,9 +29,9 @@
     TraceIdFilterTest.rejectsUnsafeTraceIdAndGeneratesInstead (a CRLF payload is rejected and
     regenerated) and ignoresMalformedTraceparentAndGeneratesInstead. Scoped to TraceIdFilter
     only — NOT a global suppression — so any future code that reads request headers still gets
-    flagged for a fresh validation review. Introduced with, and durably recorded by, issue #66
-    (the trace-id filter). See also issue #48 (SPRING_ENDPOINT) for the same
-    informational-detector exclusion pattern.
+    flagged for a fresh validation review. Introduced with issue #66 (the trace-id filter);
+    see issue #67 (durable record for this exclusion). See also issue #48 (SPRING_ENDPOINT)
+    for the same informational-detector exclusion pattern.
   -->
   <Match>
     <Class name="com.zarlania.api.web.TraceIdFilter"/>
