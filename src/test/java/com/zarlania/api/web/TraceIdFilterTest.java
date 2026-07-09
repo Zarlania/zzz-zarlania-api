@@ -14,7 +14,6 @@ import org.springframework.test.web.servlet.MockMvc;
 // e2e through the real filter chain (@AutoConfigureMockMvc registers servlet filters).
 @SpringBootTest
 @AutoConfigureMockMvc
-@SuppressWarnings("AbbreviationAsWordInName")
 class TraceIdFilterTest {
 
   private static final String VALID_TRACEPARENT =
@@ -31,7 +30,7 @@ class TraceIdFilterTest {
   }
 
   @Test
-  void fallsBackToXTraceIdHeader() throws Exception {
+  void fallsBackToTraceIdHeader() throws Exception {
     mockMvc
         .perform(get("/actuator/health").header("X-Trace-Id", "my-trace-123"))
         .andExpect(status().isOk())
@@ -63,7 +62,7 @@ class TraceIdFilterTest {
   }
 
   @Test
-  void rejectsUnsafeXTraceIdAndGeneratesInstead() throws Exception {
+  void rejectsUnsafeTraceIdAndGeneratesInstead() throws Exception {
     String unsafe = "abc\r\ninjected";
     String echoed =
         mockMvc
