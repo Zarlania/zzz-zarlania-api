@@ -1,7 +1,9 @@
 package com.zarlania.api.web;
 
+import com.zarlania.api.features.exception.FeatureToggleNotFoundException;
 import com.zarlania.api.logging.LogSanitizer;
 import com.zarlania.api.organizations.exception.OrganizationNameAlreadyExistsException;
+import com.zarlania.api.organizations.exception.OrganizationNotFoundException;
 import com.zarlania.api.organizations.exception.PersonalOrganizationAlreadyExistsException;
 import com.zarlania.api.users.exception.EmailAlreadyExistsException;
 import com.zarlania.api.users.exception.UsernameAlreadyExistsException;
@@ -91,6 +93,18 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     return conflict("The user already owns a personal organization");
   }
 
+  /** Unknown feature-toggle name in an admin operation: 404. */
+  @ExceptionHandler(FeatureToggleNotFoundException.class)
+  ProblemDetail handleFeatureToggleNotFound(FeatureToggleNotFoundException ex) {
+    return notFound("No feature toggle exists with the given name");
+  }
+
+  /** Unknown organization id: 404. */
+  @ExceptionHandler(OrganizationNotFoundException.class)
+  ProblemDetail handleOrganizationNotFound(OrganizationNotFoundException ex) {
+    return notFound("No organization exists with the given id");
+  }
+
   /**
    * Builds a 409 {@link ProblemDetail} from a fixed, safe detail and logs the conflict at INFO.
    * Conflicts are expected outcomes of concurrent sign-ups, so INFO (not WARN) gives visibility
@@ -100,5 +114,14 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
   private static ProblemDetail conflict(String detail) {
     log.info("Request rejected (409 Conflict): {}", LogSanitizer.forLog(detail));
     return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, detail);
+  }
+
+  /**
+   * Builds a 404 {@link ProblemDetail} from a fixed, safe detail and logs the miss at INFO. The
+   * detail is a fixed string, so no client-supplied value is echoed or logged.
+   */
+  private static ProblemDetail notFound(String detail) {
+    log.info("Request rejected (404 Not Found): {}", LogSanitizer.forLog(detail));
+    return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, detail);
   }
 }
