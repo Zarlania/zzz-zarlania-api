@@ -25,11 +25,12 @@ public class WebConfig implements WebMvcConfigurer {
     // config-sourced String[] of origins (see issue #23), so PERMISSIVE_CORS is not statically
     // checked here. CORS behavior is guarded by CorsConfigTest (allowed/disallowed origin +
     // preflight) instead. Methods/headers are scoped to the current API surface: GET reads plus
-    // POST writes (e.g. POST /accounts).
+    // POST/PUT/DELETE writes (e.g. POST /accounts, and the PUT/DELETE admin feature-toggle
+    // endpoints under /api/admin/feature-toggles).
     registry
         .addMapping("/**")
         .allowedOrigins(cors.allowedOrigins().toArray(String[]::new))
-        .allowedMethods("GET", "POST", "OPTIONS")
+        .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
         .allowedHeaders("Content-Type", "Accept");
   }
 }

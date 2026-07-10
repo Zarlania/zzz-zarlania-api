@@ -71,4 +71,35 @@ class CorsConfigTest {
                 .string(
                     "Access-Control-Allow-Headers", containsStringIgnoringCase("content-type")));
   }
+
+  @Test
+  void allowedOriginPutPreflightSucceeds() throws Exception {
+    mockMvc()
+        .perform(
+            options("/api/admin/feature-toggles/feature-service-canary")
+                .header("Origin", "https://zarlania.com")
+                .header("Access-Control-Request-Method", "PUT")
+                .header("Access-Control-Request-Headers", "content-type"))
+        .andExpect(status().isOk())
+        .andExpect(header().string("Access-Control-Allow-Origin", "https://zarlania.com"))
+        .andExpect(header().string("Access-Control-Allow-Methods", containsString("PUT")))
+        .andExpect(
+            header()
+                .string(
+                    "Access-Control-Allow-Headers", containsStringIgnoringCase("content-type")));
+  }
+
+  @Test
+  void allowedOriginDeletePreflightSucceeds() throws Exception {
+    mockMvc()
+        .perform(
+            options(
+                    "/api/admin/feature-toggles/feature-service-canary/organizations/"
+                        + "11111111-1111-1111-1111-111111111111")
+                .header("Origin", "https://zarlania.com")
+                .header("Access-Control-Request-Method", "DELETE"))
+        .andExpect(status().isOk())
+        .andExpect(header().string("Access-Control-Allow-Origin", "https://zarlania.com"))
+        .andExpect(header().string("Access-Control-Allow-Methods", containsString("DELETE")));
+  }
 }
