@@ -40,11 +40,14 @@ public class PasswordPolicy {
       char c = rawPassword.charAt(i);
       if (Character.isUpperCase(c)) {
         hasUpper = true;
-      } else if (Character.isLowerCase(c)) {
+      }
+      if (Character.isLowerCase(c)) {
         hasLower = true;
-      } else if (Character.isDigit(c)) {
+      }
+      if (Character.isDigit(c)) {
         hasDigit = true;
-      } else {
+      }
+      if (!Character.isLetterOrDigit(c)) {
         hasSymbol = true;
       }
     }

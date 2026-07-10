@@ -56,6 +56,12 @@ class PasswordPolicyTest {
   }
 
   @Test
+  void rejectsWhenNoncasedCharacterIsNotSymbol() {
+    // 中 is a letter (not upper/lower/digit and not a symbol), so this password has no real symbol.
+    assertThatIllegalArgumentException().isThrownBy(() -> policy.validate("Aaaaaa1中"));
+  }
+
+  @Test
   void errorMessageNeverContainsThePassword() {
     String secret = "sneaky";
     assertThatIllegalArgumentException()
