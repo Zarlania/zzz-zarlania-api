@@ -25,12 +25,13 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class FeatureToggleSynchronizer implements ApplicationRunner {
 
-  private final FeatureToggleRepository toggleRepository;
+  private final FeatureToggleRepository featureToggleRepository;
 
   @Override
   @Transactional
   public void run(ApplicationArguments args) {
-    synchronize(Arrays.stream(Feature.values()).map(Enum::name).collect(Collectors.toSet()));
+    synchronize(
+        Arrays.stream(Feature.values()).map(Feature::toggleName).collect(Collectors.toSet()));
   }
 
   /**
@@ -40,7 +41,7 @@ public class FeatureToggleSynchronizer implements ApplicationRunner {
    */
   @Transactional
   public void synchronize(Set<String> registeredNames) {
-    List<FeatureToggleEntity> existing = toggleRepository.findAll();
+    List<FeatureToggleEntity> existing = featureToggleRepository.findAll();
     Set<String> existingNames =
         existing.stream().map(FeatureToggleEntity::getName).collect(Collectors.toSet());
 
@@ -55,12 +56,12 @@ public class FeatureToggleSynchronizer implements ApplicationRunner {
                   return toggle;
                 })
             .toList();
-    toggleRepository.saveAll(created);
+    featureToggleRepository.saveAll(created);
 
     List<FeatureToggleEntity> orphaned =
         existing.stream().filter(toggle -> !registeredNames.contains(toggle.getName())).toList();
-    toggleRepository.deleteAll(orphaned);
-    toggleRepository.flush();
+    featureToggleRepository.deleteAll(orphaned);
+    featureToggleRepository.flush();
 
     log.info(
         "Feature toggles synchronized: {} registered, {} created (off), {} removed",

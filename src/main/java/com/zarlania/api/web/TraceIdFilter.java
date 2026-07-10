@@ -34,9 +34,16 @@ public class TraceIdFilter extends OncePerRequestFilter {
   private static final String TRACEPARENT_HEADER = "traceparent";
   private static final String MDC_KEY = "traceId";
 
+  // Groups: 1 = version, 2 = trace-id, 3 = parent-id (trace-flags are not captured).
   private static final Pattern TRACEPARENT =
-      Pattern.compile("^[0-9a-f]{2}-([0-9a-f]{32})-[0-9a-f]{16}-[0-9a-f]{2}$");
+      Pattern.compile("^([0-9a-f]{2})-([0-9a-f]{32})-([0-9a-f]{16})-[0-9a-f]{2}$");
   private static final Pattern SIMPLE_TRACE_ID = Pattern.compile("^[A-Za-z0-9_-]{1,64}$");
+
+  // W3C Trace Context invalid sentinels: version ff is reserved, and an all-zero trace-id or
+  // parent-id is defined as invalid — accepting any of these would pin unrelated requests together.
+  private static final String INVALID_VERSION = "ff";
+  private static final String INVALID_TRACE_ID = "0".repeat(32);
+  private static final String INVALID_PARENT_ID = "0".repeat(16);
 
   @Override
   protected void doFilterInternal(
@@ -57,8 +64,8 @@ public class TraceIdFilter extends OncePerRequestFilter {
     String traceparent = request.getHeader(TRACEPARENT_HEADER);
     if (traceparent != null) {
       Matcher matcher = TRACEPARENT.matcher(traceparent.trim());
-      if (matcher.matches()) {
-        return matcher.group(1);
+      if (matcher.matches() && isValidTraceparent(matcher)) {
+        return matcher.group(2);
       }
     }
     String simple = request.getHeader(TRACE_ID_HEADER);
@@ -66,5 +73,11 @@ public class TraceIdFilter extends OncePerRequestFilter {
       return simple;
     }
     return UUID.randomUUID().toString();
+  }
+
+  private static boolean isValidTraceparent(Matcher matcher) {
+    return !INVALID_VERSION.equals(matcher.group(1))
+        && !INVALID_TRACE_ID.equals(matcher.group(2))
+        && !INVALID_PARENT_ID.equals(matcher.group(3));
   }
 }

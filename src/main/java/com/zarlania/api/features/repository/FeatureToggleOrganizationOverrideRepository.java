@@ -1,17 +1,17 @@
 package com.zarlania.api.features.repository;
 
-import com.zarlania.api.features.entity.FeatureToggleOrgOverrideEntity;
+import com.zarlania.api.features.entity.FeatureToggleOrganizationOverrideEntity;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 /**
- * Persistence access for {@link FeatureToggleOrgOverrideEntity}. Internal to the {@code features}
- * domain.
+ * Persistence access for {@link FeatureToggleOrganizationOverrideEntity}. Internal to the {@code
+ * features} domain.
  */
-public interface FeatureToggleOrgOverrideRepository
-    extends JpaRepository<FeatureToggleOrgOverrideEntity, UUID> {
+public interface FeatureToggleOrganizationOverrideRepository
+    extends JpaRepository<FeatureToggleOrganizationOverrideEntity, UUID> {
 
   /**
    * Finds the override a toggle has for one organization.
@@ -20,7 +20,7 @@ public interface FeatureToggleOrgOverrideRepository
    * @param organizationId the organization's id
    * @return the override, if one exists
    */
-  Optional<FeatureToggleOrgOverrideEntity> findByToggleIdAndOrganizationId(
+  Optional<FeatureToggleOrganizationOverrideEntity> findByToggleIdAndOrganizationId(
       UUID toggleId, UUID organizationId);
 
   /**
@@ -29,5 +29,5 @@ public interface FeatureToggleOrgOverrideRepository
    * @param toggleId the toggle's id
    * @return the overrides (empty if none)
    */
-  List<FeatureToggleOrgOverrideEntity> findByToggleId(UUID toggleId);
+  List<FeatureToggleOrganizationOverrideEntity> findByToggleId(UUID toggleId);
 }

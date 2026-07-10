@@ -21,10 +21,10 @@ import lombok.Setter;
  * organizations} entity (ADR-0011); referential integrity is enforced by the DB foreign key.
  */
 @Entity
-@Table(name = "feature_toggle_org_overrides")
+@Table(name = "feature_toggle_organization_overrides")
 @Getter
 @NoArgsConstructor
-public class FeatureToggleOrgOverrideEntity extends Auditable {
+public class FeatureToggleOrganizationOverrideEntity extends Auditable {
 
   @Id
   @GeneratedValue(strategy = GenerationType.UUID)

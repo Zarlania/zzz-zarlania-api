@@ -4,10 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.zarlania.api.features.dto.FeatureToggle;
-import com.zarlania.api.features.dto.FeatureToggleOrgOverride;
+import com.zarlania.api.features.dto.FeatureToggleOrganizationOverride;
 import com.zarlania.api.features.entity.FeatureToggleEntity;
 import com.zarlania.api.features.exception.FeatureToggleNotFoundException;
-import com.zarlania.api.features.repository.FeatureToggleOrgOverrideRepository;
+import com.zarlania.api.features.repository.FeatureToggleOrganizationOverrideRepository;
 import com.zarlania.api.features.repository.FeatureToggleRepository;
 import com.zarlania.api.organizations.exception.OrganizationNotFoundException;
 import com.zarlania.api.persistence.JpaConfig;
@@ -26,47 +26,24 @@ import org.springframework.context.annotation.Import;
 @Import(JpaConfig.class)
 class FeatureToggleAdminServiceIntegrationTest extends AbstractIntegrationTest {
 
-  @Autowired private FeatureToggleRepository toggles;
-  @Autowired private FeatureToggleOrgOverrideRepository overrides;
+  @Autowired private FeatureToggleRepository featureToggleRepository;
+
+  @Autowired
+  private FeatureToggleOrganizationOverrideRepository featureToggleOrganizationOverrideRepository;
+
   @Autowired private TestEntityManager entityManager;
-
-  private FeatureToggleAdminService service() {
-    return new FeatureToggleAdminService(toggles, overrides, new FeatureToggleMapper());
-  }
-
-  private String saveToggle(int percentage) {
-    String name = "ADM_" + UUID.randomUUID().toString().replace("-", "");
-    FeatureToggleEntity toggle = new FeatureToggleEntity();
-    toggle.setName(name);
-    toggle.setPercentage(percentage);
-    toggles.saveAndFlush(toggle);
-    return name;
-  }
-
-  private UUID seedOrganization() {
-    UUID id = UUID.randomUUID();
-    entityManager
-        .getEntityManager()
-        .createNativeQuery(
-            "INSERT INTO organizations (id, name, type, created_at, updated_at) "
-                + "VALUES (:id, :name, 'GENERAL', NOW(), NOW())")
-        .setParameter("id", id)
-        .setParameter("name", "org-" + id)
-        .executeUpdate();
-    return id;
-  }
 
   @Test
   void getReturnsToggleWithOverrides() {
     String name = saveToggle(30);
-    UUID orgId = seedOrganization();
-    service().setOrgOverride(name, orgId, 10);
+    UUID organizationId = seedOrganization();
+    service().setOrganizationOverride(name, organizationId, 10);
 
     FeatureToggle toggle = service().get(name);
     assertThat(toggle.name()).isEqualTo(name);
     assertThat(toggle.percentage()).isEqualTo(30);
     assertThat(toggle.organizationOverrides())
-        .containsExactly(new FeatureToggleOrgOverride(orgId, 10));
+        .containsExactly(new FeatureToggleOrganizationOverride(organizationId, 10));
   }
 
   @Test
@@ -86,7 +63,8 @@ class FeatureToggleAdminServiceIntegrationTest extends AbstractIntegrationTest {
     String name = saveToggle(0);
     FeatureToggle updated = service().setPercentage(name, 100);
     assertThat(updated.percentage()).isEqualTo(100);
-    assertThat(toggles.findByName(name).orElseThrow().getPercentage()).isEqualTo(100);
+    assertThat(featureToggleRepository.findByName(name).orElseThrow().getPercentage())
+        .isEqualTo(100);
   }
 
   @Test
@@ -99,38 +77,67 @@ class FeatureToggleAdminServiceIntegrationTest extends AbstractIntegrationTest {
   }
 
   @Test
-  void setOrgOverrideCreatesThenReplaces() {
+  void setOrganizationOverrideCreatesThenReplaces() {
     String name = saveToggle(0);
-    UUID orgId = seedOrganization();
+    UUID organizationId = seedOrganization();
 
-    service().setOrgOverride(name, orgId, 10);
-    FeatureToggle updated = service().setOrgOverride(name, orgId, 90);
+    service().setOrganizationOverride(name, organizationId, 10);
+    FeatureToggle updated = service().setOrganizationOverride(name, organizationId, 90);
 
     assertThat(updated.organizationOverrides())
-        .containsExactly(new FeatureToggleOrgOverride(orgId, 90));
+        .containsExactly(new FeatureToggleOrganizationOverride(organizationId, 90));
   }
 
   @Test
-  void setOrgOverrideForUnknownOrganizationThrowsOrganizationNotFound() {
+  void setOrganizationOverrideForUnknownOrganizationThrowsOrganizationNotFound() {
     String name = saveToggle(0);
-    assertThatThrownBy(() -> service().setOrgOverride(name, UUID.randomUUID(), 10))
+    assertThatThrownBy(() -> service().setOrganizationOverride(name, UUID.randomUUID(), 10))
         .isInstanceOf(OrganizationNotFoundException.class);
   }
 
   @Test
-  void removeOrgOverrideFallsBackToGlobal() {
+  void removeOrganizationOverrideFallsBackToGlobal() {
     String name = saveToggle(70);
-    UUID orgId = seedOrganization();
-    service().setOrgOverride(name, orgId, 10);
+    UUID organizationId = seedOrganization();
+    service().setOrganizationOverride(name, organizationId, 10);
 
-    FeatureToggle updated = service().removeOrgOverride(name, orgId);
+    FeatureToggle updated = service().removeOrganizationOverride(name, organizationId);
     assertThat(updated.organizationOverrides()).isEmpty();
   }
 
   @Test
   void removeMissingOverrideIsIdempotent() {
     String name = saveToggle(70);
-    FeatureToggle updated = service().removeOrgOverride(name, UUID.randomUUID());
+    FeatureToggle updated = service().removeOrganizationOverride(name, UUID.randomUUID());
     assertThat(updated.organizationOverrides()).isEmpty();
+  }
+
+  private FeatureToggleAdminService service() {
+    return new FeatureToggleAdminService(
+        featureToggleRepository,
+        featureToggleOrganizationOverrideRepository,
+        new FeatureToggleMapper());
+  }
+
+  private String saveToggle(int percentage) {
+    String name = "ADM_" + UUID.randomUUID().toString().replace("-", "");
+    FeatureToggleEntity toggle = new FeatureToggleEntity();
+    toggle.setName(name);
+    toggle.setPercentage(percentage);
+    featureToggleRepository.saveAndFlush(toggle);
+    return name;
+  }
+
+  private UUID seedOrganization() {
+    UUID id = UUID.randomUUID();
+    entityManager
+        .getEntityManager()
+        .createNativeQuery(
+            "INSERT INTO organizations (id, name, type, created_at, updated_at) "
+                + "VALUES (:id, :name, 'GENERAL', NOW(), NOW())")
+        .setParameter("id", id)
+        .setParameter("name", "org-" + id)
+        .executeUpdate();
+    return id;
   }
 }

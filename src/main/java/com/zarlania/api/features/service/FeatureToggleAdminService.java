@@ -2,9 +2,9 @@ package com.zarlania.api.features.service;
 
 import com.zarlania.api.features.dto.FeatureToggle;
 import com.zarlania.api.features.entity.FeatureToggleEntity;
-import com.zarlania.api.features.entity.FeatureToggleOrgOverrideEntity;
+import com.zarlania.api.features.entity.FeatureToggleOrganizationOverrideEntity;
 import com.zarlania.api.features.exception.FeatureToggleNotFoundException;
-import com.zarlania.api.features.repository.FeatureToggleOrgOverrideRepository;
+import com.zarlania.api.features.repository.FeatureToggleOrganizationOverrideRepository;
 import com.zarlania.api.features.repository.FeatureToggleRepository;
 import com.zarlania.api.organizations.exception.OrganizationNotFoundException;
 import com.zarlania.api.persistence.ConstraintViolations;
@@ -27,11 +27,13 @@ import org.springframework.transaction.annotation.Transactional;
 public class FeatureToggleAdminService {
 
   /** Name of the override→organization FK constraint in {@code V4__...sql}. */
-  private static final String ORGANIZATION_FK_CONSTRAINT = "fk_ft_org_overrides_organization";
+  private static final String ORGANIZATION_FK_CONSTRAINT =
+      "fk_feature_toggle_organization_overrides_organization";
 
-  private final FeatureToggleRepository toggleRepository;
-  private final FeatureToggleOrgOverrideRepository overrideRepository;
-  private final FeatureToggleMapper mapper;
+  private final FeatureToggleRepository featureToggleRepository;
+  private final FeatureToggleOrganizationOverrideRepository
+      featureToggleOrganizationOverrideRepository;
+  private final FeatureToggleMapper featureToggleMapper;
 
   /**
    * Lists every registered toggle with its overrides.
@@ -40,7 +42,7 @@ public class FeatureToggleAdminService {
    */
   @Transactional(readOnly = true)
   public List<FeatureToggle> list() {
-    return toggleRepository.findAll().stream().map(this::toDto).toList();
+    return featureToggleRepository.findAll().stream().map(this::toDto).toList();
   }
 
   /**
@@ -69,7 +71,7 @@ public class FeatureToggleAdminService {
     requireValidPercentage(percentage);
     FeatureToggleEntity toggle = requireToggle(name);
     toggle.setPercentage(percentage);
-    return toDto(toggleRepository.saveAndFlush(toggle));
+    return toDto(featureToggleRepository.saveAndFlush(toggle));
   }
 
   /**
@@ -84,16 +86,17 @@ public class FeatureToggleAdminService {
    * @throws IllegalArgumentException if the percentage is outside 0–100 or the id is null
    */
   @Transactional
-  public FeatureToggle setOrgOverride(String name, UUID organizationId, int percentage) {
+  public FeatureToggle setOrganizationOverride(String name, UUID organizationId, int percentage) {
     requireValidPercentage(percentage);
     requireNonNull(organizationId, "organizationId");
     FeatureToggleEntity toggle = requireToggle(name);
-    FeatureToggleOrgOverrideEntity override =
-        overrideRepository
+    FeatureToggleOrganizationOverrideEntity override =
+        featureToggleOrganizationOverrideRepository
             .findByToggleIdAndOrganizationId(toggle.getId(), organizationId)
             .orElseGet(
                 () -> {
-                  FeatureToggleOrgOverrideEntity created = new FeatureToggleOrgOverrideEntity();
+                  FeatureToggleOrganizationOverrideEntity created =
+                      new FeatureToggleOrganizationOverrideEntity();
                   created.setToggle(toggle);
                   created.setOrganizationId(organizationId);
                   return created;
@@ -102,10 +105,10 @@ public class FeatureToggleAdminService {
     try {
       // saveAndFlush forces the INSERT now so an unknown organization surfaces here as the FK
       // violation and is reported as the domain exception rather than a raw persistence error.
-      overrideRepository.saveAndFlush(override);
+      featureToggleOrganizationOverrideRepository.saveAndFlush(override);
     } catch (DataIntegrityViolationException ex) {
       if (ConstraintViolations.matches(ex, ORGANIZATION_FK_CONSTRAINT)) {
-        throw OrganizationNotFoundException.forId(organizationId);
+        throw OrganizationNotFoundException.forId(organizationId, ex);
       }
       throw ex;
     }
@@ -123,24 +126,25 @@ public class FeatureToggleAdminService {
    * @throws IllegalArgumentException if the id is null
    */
   @Transactional
-  public FeatureToggle removeOrgOverride(String name, UUID organizationId) {
+  public FeatureToggle removeOrganizationOverride(String name, UUID organizationId) {
     requireNonNull(organizationId, "organizationId");
     FeatureToggleEntity toggle = requireToggle(name);
-    overrideRepository
+    featureToggleOrganizationOverrideRepository
         .findByToggleIdAndOrganizationId(toggle.getId(), organizationId)
-        .ifPresent(overrideRepository::delete);
-    overrideRepository.flush();
+        .ifPresent(featureToggleOrganizationOverrideRepository::delete);
+    featureToggleOrganizationOverrideRepository.flush();
     return toDto(toggle);
   }
 
   private FeatureToggleEntity requireToggle(String name) {
-    return toggleRepository
+    return featureToggleRepository
         .findByName(name)
         .orElseThrow(() -> FeatureToggleNotFoundException.forName(name));
   }
 
   private FeatureToggle toDto(FeatureToggleEntity toggle) {
-    return mapper.toDto(toggle, overrideRepository.findByToggleId(toggle.getId()));
+    return featureToggleMapper.toDto(
+        toggle, featureToggleOrganizationOverrideRepository.findByToggleId(toggle.getId()));
   }
 
   private static void requireValidPercentage(int percentage) {

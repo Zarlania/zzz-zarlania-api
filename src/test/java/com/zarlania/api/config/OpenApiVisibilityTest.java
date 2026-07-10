@@ -36,6 +36,21 @@ class OpenApiVisibilityTest {
     void adminGroupDocIsAbsentByDefault() throws Exception {
       mockMvc.perform(get("/v3/api-docs/admin")).andExpect(status().isNotFound());
     }
+
+    @Test
+    void publicDocOmitsAdminOnlySchemasButKeepsPublicOnes() throws Exception {
+      mockMvc
+          .perform(get("/v3/api-docs"))
+          .andExpect(status().isOk())
+          // admin-only DTOs are pruned once their operations are stripped ...
+          .andExpect(jsonPath("$.components.schemas.SetPercentageRequest").doesNotExist())
+          .andExpect(jsonPath("$.components.schemas.FeatureToggle").doesNotExist())
+          .andExpect(
+              jsonPath("$.components.schemas.FeatureToggleOrganizationOverride").doesNotExist())
+          // ... while schemas a surviving public operation still references are kept.
+          .andExpect(jsonPath("$.components.schemas.CreateAccountRequest").exists())
+          .andExpect(jsonPath("$.components.schemas.Account").exists());
+    }
   }
 
   @Nested

@@ -28,7 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class FeatureToggleAdminController {
 
-  private final FeatureToggleAdminService adminService;
+  private final FeatureToggleAdminService featureToggleAdminService;
 
   /**
    * Lists every registered toggle with its overrides.
@@ -37,7 +37,7 @@ public class FeatureToggleAdminController {
    */
   @GetMapping
   public List<FeatureToggle> list() {
-    return adminService.list();
+    return featureToggleAdminService.list();
   }
 
   /**
@@ -48,7 +48,7 @@ public class FeatureToggleAdminController {
    */
   @GetMapping("/{name}")
   public FeatureToggle get(@PathVariable String name) {
-    return adminService.get(name);
+    return featureToggleAdminService.get(name);
   }
 
   /**
@@ -61,7 +61,7 @@ public class FeatureToggleAdminController {
   @PutMapping("/{name}")
   public FeatureToggle setPercentage(
       @PathVariable String name, @Valid @RequestBody SetPercentageRequest request) {
-    return adminService.setPercentage(name, request.percentage());
+    return featureToggleAdminService.setPercentage(name, request.percentage());
   }
 
   /**
@@ -73,11 +73,12 @@ public class FeatureToggleAdminController {
    * @return the updated toggle
    */
   @PutMapping("/{name}/organizations/{organizationId}")
-  public FeatureToggle setOrgOverride(
+  public FeatureToggle setOrganizationOverride(
       @PathVariable String name,
       @PathVariable UUID organizationId,
       @Valid @RequestBody SetPercentageRequest request) {
-    return adminService.setOrgOverride(name, organizationId, request.percentage());
+    return featureToggleAdminService.setOrganizationOverride(
+        name, organizationId, request.percentage());
   }
 
   /**
@@ -89,7 +90,8 @@ public class FeatureToggleAdminController {
    */
   @DeleteMapping("/{name}/organizations/{organizationId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
-  public void removeOrgOverride(@PathVariable String name, @PathVariable UUID organizationId) {
-    adminService.removeOrgOverride(name, organizationId);
+  public void removeOrganizationOverride(
+      @PathVariable String name, @PathVariable UUID organizationId) {
+    featureToggleAdminService.removeOrganizationOverride(name, organizationId);
   }
 }

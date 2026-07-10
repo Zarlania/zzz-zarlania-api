@@ -13,7 +13,7 @@ import java.util.List;
  *     global percentage for its organization
  */
 public record FeatureToggle(
-    String name, int percentage, List<FeatureToggleOrgOverride> organizationOverrides) {
+    String name, int percentage, List<FeatureToggleOrganizationOverride> organizationOverrides) {
 
   /**
    * Stores an immutable copy of the overrides list.

@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.zarlania.api.features.entity.FeatureToggleEntity;
-import com.zarlania.api.features.entity.FeatureToggleOrgOverrideEntity;
+import com.zarlania.api.features.entity.FeatureToggleOrganizationOverrideEntity;
 import com.zarlania.api.persistence.JpaConfig;
 import com.zarlania.api.support.AbstractIntegrationTest;
 import java.util.UUID;
@@ -22,38 +22,12 @@ import org.springframework.dao.DataIntegrityViolationException;
 @Import(JpaConfig.class)
 class FeatureToggleRepositoryIntegrationTest extends AbstractIntegrationTest {
 
-  @Autowired private FeatureToggleRepository toggles;
-  @Autowired private FeatureToggleOrgOverrideRepository overrides;
+  @Autowired private FeatureToggleRepository featureToggleRepository;
+
+  @Autowired
+  private FeatureToggleOrganizationOverrideRepository featureToggleOrganizationOverrideRepository;
+
   @Autowired private TestEntityManager entityManager;
-
-  private FeatureToggleEntity saveToggle(String name, int percentage) {
-    FeatureToggleEntity toggle = new FeatureToggleEntity();
-    toggle.setName(name);
-    toggle.setPercentage(percentage);
-    return toggles.saveAndFlush(toggle);
-  }
-
-  private UUID seedOrganization(String name) {
-    UUID id = UUID.randomUUID();
-    entityManager
-        .getEntityManager()
-        .createNativeQuery(
-            "INSERT INTO organizations (id, name, type, created_at, updated_at) "
-                + "VALUES (:id, :name, 'GENERAL', NOW(), NOW())")
-        .setParameter("id", id)
-        .setParameter("name", name)
-        .executeUpdate();
-    return id;
-  }
-
-  private FeatureToggleOrgOverrideEntity newOverride(
-      FeatureToggleEntity toggle, UUID organizationId, int percentage) {
-    FeatureToggleOrgOverrideEntity override = new FeatureToggleOrgOverrideEntity();
-    override.setToggle(toggle);
-    override.setOrganizationId(organizationId);
-    override.setPercentage(percentage);
-    return override;
-  }
 
   @Test
   void savingAssignsIdAndAuditTimestamps() {
@@ -67,7 +41,7 @@ class FeatureToggleRepositoryIntegrationTest extends AbstractIntegrationTest {
   void findByNameReturnsSavedToggle() {
     String name = "T_" + UUID.randomUUID();
     saveToggle(name, 25);
-    assertThat(toggles.findByName(name))
+    assertThat(featureToggleRepository.findByName(name))
         .hasValueSatisfying(found -> assertThat(found.getPercentage()).isEqualTo(25));
   }
 
@@ -89,42 +63,85 @@ class FeatureToggleRepositoryIntegrationTest extends AbstractIntegrationTest {
   @Test
   void overrideRoundTripsAndFindsByToggleAndOrganization() {
     FeatureToggleEntity toggle = saveToggle("T_" + UUID.randomUUID(), 0);
-    UUID orgId = seedOrganization("org-" + UUID.randomUUID());
-    overrides.saveAndFlush(newOverride(toggle, orgId, 10));
+    UUID organizationId = seedOrganization("org-" + UUID.randomUUID());
+    featureToggleOrganizationOverrideRepository.saveAndFlush(
+        newOverride(toggle, organizationId, 10));
 
-    assertThat(overrides.findByToggleIdAndOrganizationId(toggle.getId(), orgId))
+    assertThat(
+            featureToggleOrganizationOverrideRepository.findByToggleIdAndOrganizationId(
+                toggle.getId(), organizationId))
         .hasValueSatisfying(found -> assertThat(found.getPercentage()).isEqualTo(10));
-    assertThat(overrides.findByToggleId(toggle.getId())).hasSize(1);
+    assertThat(featureToggleOrganizationOverrideRepository.findByToggleId(toggle.getId()))
+        .hasSize(1);
   }
 
   @Test
   void overrideForUnknownOrganizationIsRejectedByForeignKey() {
     FeatureToggleEntity toggle = saveToggle("T_" + UUID.randomUUID(), 0);
-    assertThatThrownBy(() -> overrides.saveAndFlush(newOverride(toggle, UUID.randomUUID(), 10)))
+    assertThatThrownBy(
+            () ->
+                featureToggleOrganizationOverrideRepository.saveAndFlush(
+                    newOverride(toggle, UUID.randomUUID(), 10)))
         .isInstanceOf(DataIntegrityViolationException.class)
-        .hasMessageContaining("fk_ft_org_overrides_organization");
+        .hasMessageContaining("fk_feature_toggle_organization_overrides_organization");
   }
 
   @Test
   void duplicateOverridePerOrganizationIsRejectedByUniqueConstraint() {
     FeatureToggleEntity toggle = saveToggle("T_" + UUID.randomUUID(), 0);
-    UUID orgId = seedOrganization("org-" + UUID.randomUUID());
-    overrides.saveAndFlush(newOverride(toggle, orgId, 10));
-    assertThatThrownBy(() -> overrides.saveAndFlush(newOverride(toggle, orgId, 20)))
+    UUID organizationId = seedOrganization("org-" + UUID.randomUUID());
+    featureToggleOrganizationOverrideRepository.saveAndFlush(
+        newOverride(toggle, organizationId, 10));
+    assertThatThrownBy(
+            () ->
+                featureToggleOrganizationOverrideRepository.saveAndFlush(
+                    newOverride(toggle, organizationId, 20)))
         .isInstanceOf(DataIntegrityViolationException.class)
-        .hasMessageContaining("uq_ft_org_overrides_toggle_org");
+        .hasMessageContaining("uq_feature_toggle_organization_overrides_toggle_organization");
   }
 
   @Test
   void deletingToggleCascadesToOverridesAtDbLevel() {
     FeatureToggleEntity toggle = saveToggle("T_" + UUID.randomUUID(), 0);
-    UUID orgId = seedOrganization("org-" + UUID.randomUUID());
-    overrides.saveAndFlush(newOverride(toggle, orgId, 10));
+    UUID organizationId = seedOrganization("org-" + UUID.randomUUID());
+    featureToggleOrganizationOverrideRepository.saveAndFlush(
+        newOverride(toggle, organizationId, 10));
     entityManager.getEntityManager().clear();
 
-    toggles.deleteById(toggle.getId());
-    toggles.flush();
+    featureToggleRepository.deleteById(toggle.getId());
+    featureToggleRepository.flush();
 
-    assertThat(overrides.findByToggleId(toggle.getId())).isEmpty();
+    assertThat(featureToggleOrganizationOverrideRepository.findByToggleId(toggle.getId()))
+        .isEmpty();
+  }
+
+  private FeatureToggleEntity saveToggle(String name, int percentage) {
+    FeatureToggleEntity toggle = new FeatureToggleEntity();
+    toggle.setName(name);
+    toggle.setPercentage(percentage);
+    return featureToggleRepository.saveAndFlush(toggle);
+  }
+
+  private UUID seedOrganization(String name) {
+    UUID id = UUID.randomUUID();
+    entityManager
+        .getEntityManager()
+        .createNativeQuery(
+            "INSERT INTO organizations (id, name, type, created_at, updated_at) "
+                + "VALUES (:id, :name, 'GENERAL', NOW(), NOW())")
+        .setParameter("id", id)
+        .setParameter("name", name)
+        .executeUpdate();
+    return id;
+  }
+
+  private FeatureToggleOrganizationOverrideEntity newOverride(
+      FeatureToggleEntity toggle, UUID organizationId, int percentage) {
+    FeatureToggleOrganizationOverrideEntity override =
+        new FeatureToggleOrganizationOverrideEntity();
+    override.setToggle(toggle);
+    override.setOrganizationId(organizationId);
+    override.setPercentage(percentage);
+    return override;
   }
 }

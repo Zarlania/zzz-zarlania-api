@@ -1,9 +1,9 @@
 package com.zarlania.api.features.service;
 
 import com.zarlania.api.features.dto.FeatureToggle;
-import com.zarlania.api.features.dto.FeatureToggleOrgOverride;
+import com.zarlania.api.features.dto.FeatureToggleOrganizationOverride;
 import com.zarlania.api.features.entity.FeatureToggleEntity;
-import com.zarlania.api.features.entity.FeatureToggleOrgOverrideEntity;
+import com.zarlania.api.features.entity.FeatureToggleOrganizationOverrideEntity;
 import java.util.List;
 import org.springframework.stereotype.Component;
 
@@ -19,12 +19,12 @@ public class FeatureToggleMapper {
    * @return a DTO carrying the name, global percentage, and per-organization overrides
    */
   public FeatureToggle toDto(
-      FeatureToggleEntity entity, List<FeatureToggleOrgOverrideEntity> overrides) {
-    List<FeatureToggleOrgOverride> overrideDtos =
+      FeatureToggleEntity entity, List<FeatureToggleOrganizationOverrideEntity> overrides) {
+    List<FeatureToggleOrganizationOverride> overrideDtos =
         overrides.stream()
             .map(
                 override ->
-                    new FeatureToggleOrgOverride(
+                    new FeatureToggleOrganizationOverride(
                         override.getOrganizationId(), override.getPercentage()))
             .toList();
     return new FeatureToggle(entity.getName(), entity.getPercentage(), overrideDtos);

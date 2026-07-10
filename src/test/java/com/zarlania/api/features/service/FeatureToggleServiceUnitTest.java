@@ -11,8 +11,8 @@ import static org.mockito.Mockito.when;
 import com.zarlania.api.features.Feature;
 import com.zarlania.api.features.config.FeatureCacheProperties;
 import com.zarlania.api.features.entity.FeatureToggleEntity;
-import com.zarlania.api.features.entity.FeatureToggleOrgOverrideEntity;
-import com.zarlania.api.features.repository.FeatureToggleOrgOverrideRepository;
+import com.zarlania.api.features.entity.FeatureToggleOrganizationOverrideEntity;
+import com.zarlania.api.features.repository.FeatureToggleOrganizationOverrideRepository;
 import com.zarlania.api.features.repository.FeatureToggleRepository;
 import java.time.Duration;
 import java.util.Optional;
@@ -28,34 +28,13 @@ class FeatureToggleServiceUnitTest {
 
   private static final Feature FEATURE = Feature.FEATURE_SERVICE_CANARY;
 
-  @Mock private FeatureToggleRepository toggleRepository;
-  @Mock private FeatureToggleOrgOverrideRepository overrideRepository;
+  @Mock private FeatureToggleRepository featureToggleRepository;
+
+  @Mock
+  private FeatureToggleOrganizationOverrideRepository featureToggleOrganizationOverrideRepository;
 
   private String traceId;
   private double nextRandom;
-
-  private FeatureToggleService service() {
-    TraceDecisionCache cache =
-        new CaffeineTraceDecisionCache(new FeatureCacheProperties(Duration.ofMinutes(10), 100));
-    return new FeatureToggleService(
-        toggleRepository,
-        overrideRepository,
-        cache,
-        () -> Optional.ofNullable(traceId),
-        () -> nextRandom);
-  }
-
-  private FeatureToggleEntity toggle(int percentage) {
-    FeatureToggleEntity entity = new FeatureToggleEntity();
-    entity.setName(FEATURE.name());
-    entity.setPercentage(percentage);
-    ReflectionTestUtils.setField(entity, "id", UUID.randomUUID());
-    return entity;
-  }
-
-  private void stubToggle(int percentage) {
-    when(toggleRepository.findByName(FEATURE.name())).thenReturn(Optional.of(toggle(percentage)));
-  }
 
   @Test
   void rejectsNullFeature() {
@@ -93,34 +72,37 @@ class FeatureToggleServiceUnitTest {
 
   @Test
   void missingRowFailsSafeToOff() {
-    when(toggleRepository.findByName(FEATURE.name())).thenReturn(Optional.empty());
+    when(featureToggleRepository.findByName(FEATURE.toggleName())).thenReturn(Optional.empty());
     assertThat(service().isEnabled(FEATURE)).isFalse();
   }
 
   @Test
-  void orgOverrideBeatsGlobalUnconditionally() {
+  void organizationOverrideBeatsGlobalUnconditionally() {
     FeatureToggleEntity entity = toggle(100);
-    when(toggleRepository.findByName(FEATURE.name())).thenReturn(Optional.of(entity));
-    UUID orgId = UUID.randomUUID();
-    FeatureToggleOrgOverrideEntity override = new FeatureToggleOrgOverrideEntity();
+    when(featureToggleRepository.findByName(FEATURE.toggleName())).thenReturn(Optional.of(entity));
+    UUID organizationId = UUID.randomUUID();
+    FeatureToggleOrganizationOverrideEntity override =
+        new FeatureToggleOrganizationOverrideEntity();
     override.setToggle(entity);
-    override.setOrganizationId(orgId);
+    override.setOrganizationId(organizationId);
     override.setPercentage(0);
-    when(overrideRepository.findByToggleIdAndOrganizationId(entity.getId(), orgId))
+    when(featureToggleOrganizationOverrideRepository.findByToggleIdAndOrganizationId(
+            entity.getId(), organizationId))
         .thenReturn(Optional.of(override));
 
-    assertThat(service().isEnabled(FEATURE, orgId)).isFalse();
+    assertThat(service().isEnabled(FEATURE, organizationId)).isFalse();
   }
 
   @Test
-  void orgWithoutOverrideFallsBackToGlobal() {
+  void organizationWithoutOverrideFallsBackToGlobal() {
     FeatureToggleEntity entity = toggle(100);
-    when(toggleRepository.findByName(FEATURE.name())).thenReturn(Optional.of(entity));
-    UUID orgId = UUID.randomUUID();
-    when(overrideRepository.findByToggleIdAndOrganizationId(entity.getId(), orgId))
+    when(featureToggleRepository.findByName(FEATURE.toggleName())).thenReturn(Optional.of(entity));
+    UUID organizationId = UUID.randomUUID();
+    when(featureToggleOrganizationOverrideRepository.findByToggleIdAndOrganizationId(
+            entity.getId(), organizationId))
         .thenReturn(Optional.empty());
 
-    assertThat(service().isEnabled(FEATURE, orgId)).isTrue();
+    assertThat(service().isEnabled(FEATURE, organizationId)).isTrue();
   }
 
   @Test
@@ -131,7 +113,9 @@ class FeatureToggleServiceUnitTest {
     assertThat(service.isEnabled(FEATURE)).isTrue();
 
     // State flips to off, but the pinned decision must hold for the same trace.
-    lenient().when(toggleRepository.findByName(FEATURE.name())).thenReturn(Optional.of(toggle(0)));
+    lenient()
+        .when(featureToggleRepository.findByName(FEATURE.toggleName()))
+        .thenReturn(Optional.of(toggle(0)));
     assertThat(service.isEnabled(FEATURE)).isTrue();
   }
 
@@ -143,7 +127,8 @@ class FeatureToggleServiceUnitTest {
     assertThat(service.isEnabled(FEATURE)).isTrue();
 
     traceId = "trace-2";
-    when(toggleRepository.findByName(FEATURE.name())).thenReturn(Optional.of(toggle(0)));
+    when(featureToggleRepository.findByName(FEATURE.toggleName()))
+        .thenReturn(Optional.of(toggle(0)));
     assertThat(service.isEnabled(FEATURE)).isFalse();
   }
 
@@ -154,7 +139,8 @@ class FeatureToggleServiceUnitTest {
     FeatureToggleService service = service();
     assertThat(service.isEnabled(FEATURE)).isTrue();
 
-    when(toggleRepository.findByName(FEATURE.name())).thenReturn(Optional.of(toggle(0)));
+    when(featureToggleRepository.findByName(FEATURE.toggleName()))
+        .thenReturn(Optional.of(toggle(0)));
     assertThat(service.isEnabled(FEATURE)).isFalse();
   }
 
@@ -163,6 +149,31 @@ class FeatureToggleServiceUnitTest {
     stubToggle(50);
     nextRandom = 0.9;
     service().isEnabled(FEATURE);
-    verify(overrideRepository, never()).findByToggleIdAndOrganizationId(any(), any());
+    verify(featureToggleOrganizationOverrideRepository, never())
+        .findByToggleIdAndOrganizationId(any(), any());
+  }
+
+  private FeatureToggleService service() {
+    TraceDecisionCache cache =
+        new CaffeineTraceDecisionCache(new FeatureCacheProperties(Duration.ofMinutes(10), 100));
+    return new FeatureToggleService(
+        featureToggleRepository,
+        featureToggleOrganizationOverrideRepository,
+        cache,
+        () -> Optional.ofNullable(traceId),
+        () -> nextRandom);
+  }
+
+  private FeatureToggleEntity toggle(int percentage) {
+    FeatureToggleEntity entity = new FeatureToggleEntity();
+    entity.setName(FEATURE.toggleName());
+    entity.setPercentage(percentage);
+    ReflectionTestUtils.setField(entity, "id", UUID.randomUUID());
+    return entity;
+  }
+
+  private void stubToggle(int percentage) {
+    when(featureToggleRepository.findByName(FEATURE.toggleName()))
+        .thenReturn(Optional.of(toggle(percentage)));
   }
 }

@@ -27,26 +27,12 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 class FeatureToggleAdminControllerTest {
 
-  private static final String CANARY = Feature.FEATURE_SERVICE_CANARY.name();
+  private static final String CANARY = Feature.FEATURE_SERVICE_CANARY.toggleName();
   private static final String BASE = "/api/admin/feature-toggles";
 
   @Autowired private MockMvc mockMvc;
   @Autowired private UserService userService;
   @Autowired private OrganizationService organizationService;
-
-  private static String unique(String prefix) {
-    return prefix + UUID.randomUUID().toString().substring(0, 8);
-  }
-
-  private static String body(int percentage) {
-    return "{\"percentage\":" + percentage + "}";
-  }
-
-  private UUID seedOrganization() {
-    User creator = userService.create(unique("e") + "@example.com", unique("u"));
-    Organization org = organizationService.createGeneralOrganization(creator.id(), unique("org"));
-    return org.id();
-  }
 
   @Test
   void listContainsTheCanaryToggle() throws Exception {
@@ -101,20 +87,21 @@ class FeatureToggleAdminControllerTest {
   }
 
   @Test
-  void orgOverrideRoundTrip() throws Exception {
-    UUID orgId = seedOrganization();
+  void organizationOverrideRoundTrip() throws Exception {
+    UUID organizationId = seedOrganization();
 
     mockMvc
         .perform(
-            put(BASE + "/" + CANARY + "/organizations/" + orgId)
+            put(BASE + "/" + CANARY + "/organizations/" + organizationId)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body(10)))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.organizationOverrides[0].organizationId").value(orgId.toString()))
+        .andExpect(
+            jsonPath("$.organizationOverrides[0].organizationId").value(organizationId.toString()))
         .andExpect(jsonPath("$.organizationOverrides[0].percentage").value(10));
 
     mockMvc
-        .perform(delete(BASE + "/" + CANARY + "/organizations/" + orgId))
+        .perform(delete(BASE + "/" + CANARY + "/organizations/" + organizationId))
         .andExpect(status().isNoContent());
 
     mockMvc
@@ -124,7 +111,7 @@ class FeatureToggleAdminControllerTest {
   }
 
   @Test
-  void orgOverrideForUnknownOrganizationReturns404() throws Exception {
+  void organizationOverrideForUnknownOrganizationReturns404() throws Exception {
     mockMvc
         .perform(
             put(BASE + "/" + CANARY + "/organizations/" + UUID.randomUUID())
@@ -132,5 +119,20 @@ class FeatureToggleAdminControllerTest {
                 .content(body(10)))
         .andExpect(status().isNotFound())
         .andExpect(jsonPath("$.detail").value("No organization exists with the given id"));
+  }
+
+  private static String unique(String prefix) {
+    return prefix + UUID.randomUUID().toString().substring(0, 8);
+  }
+
+  private static String body(int percentage) {
+    return "{\"percentage\":" + percentage + "}";
+  }
+
+  private UUID seedOrganization() {
+    User creator = userService.create(unique("e") + "@example.com", unique("u"));
+    Organization organization =
+        organizationService.createGeneralOrganization(creator.id(), unique("org"));
+    return organization.id();
   }
 }

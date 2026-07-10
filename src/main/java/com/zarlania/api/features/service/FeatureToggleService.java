@@ -2,7 +2,8 @@ package com.zarlania.api.features.service;
 
 import com.zarlania.api.features.Feature;
 import com.zarlania.api.features.entity.FeatureToggleEntity;
-import com.zarlania.api.features.repository.FeatureToggleOrgOverrideRepository;
+import com.zarlania.api.features.entity.FeatureToggleOrganizationOverrideEntity;
+import com.zarlania.api.features.repository.FeatureToggleOrganizationOverrideRepository;
 import com.zarlania.api.features.repository.FeatureToggleRepository;
 import com.zarlania.api.web.CurrentTraceId;
 import java.util.Optional;
@@ -23,9 +24,10 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class FeatureToggleService {
 
-  private final FeatureToggleRepository toggleRepository;
-  private final FeatureToggleOrgOverrideRepository overrideRepository;
-  private final TraceDecisionCache decisionCache;
+  private final FeatureToggleRepository featureToggleRepository;
+  private final FeatureToggleOrganizationOverrideRepository
+      featureToggleOrganizationOverrideRepository;
+  private final TraceDecisionCache traceDecisionCache;
   private final CurrentTraceId currentTraceId;
   private final RandomSource randomSource;
 
@@ -55,24 +57,46 @@ public class FeatureToggleService {
     if (feature == null) {
       throw new IllegalArgumentException("feature must not be null");
     }
+    Optional<FeatureToggleEntity> toggle = featureToggleRepository.findByName(feature.toggleName());
+    Optional<FeatureToggleOrganizationOverrideEntity> override =
+        findOverride(toggle, organizationId);
+    // A no-override organization resolves the toggle's global decision, so it must share the global
+    // trace pin (organization id null) rather than draw its own coin flip: without this, checking
+    // the same toggle for several no-override organizations in one request could flip differently.
+    UUID decisionOrganizationId = override.isPresent() ? organizationId : null;
+
     Optional<String> traceId = currentTraceId.get();
     if (traceId.isPresent()) {
-      Optional<Boolean> pinned = decisionCache.get(traceId.get(), feature, organizationId);
+      Optional<Boolean> pinned =
+          traceDecisionCache.get(traceId.get(), feature, decisionOrganizationId);
       if (pinned.isPresent()) {
         return pinned.get();
       }
     }
-    boolean enabled = evaluate(feature, organizationId);
-    traceId.ifPresent(id -> decisionCache.put(id, feature, organizationId, enabled));
+    boolean enabled = evaluate(toggle, override);
+    traceId.ifPresent(id -> traceDecisionCache.put(id, feature, decisionOrganizationId, enabled));
     return enabled;
   }
 
-  private boolean evaluate(Feature feature, UUID organizationId) {
-    Optional<FeatureToggleEntity> toggle = toggleRepository.findByName(feature.name());
+  private Optional<FeatureToggleOrganizationOverrideEntity> findOverride(
+      Optional<FeatureToggleEntity> toggle, UUID organizationId) {
+    if (toggle.isEmpty() || organizationId == null) {
+      return Optional.empty();
+    }
+    return featureToggleOrganizationOverrideRepository.findByToggleIdAndOrganizationId(
+        toggle.get().getId(), organizationId);
+  }
+
+  private boolean evaluate(
+      Optional<FeatureToggleEntity> toggle,
+      Optional<FeatureToggleOrganizationOverrideEntity> override) {
     if (toggle.isEmpty()) {
       return false;
     }
-    int percentage = effectivePercentage(toggle.get(), organizationId);
+    int percentage =
+        override
+            .map(FeatureToggleOrganizationOverrideEntity::getPercentage)
+            .orElseGet(toggle.get()::getPercentage);
     if (percentage <= 0) {
       return false;
     }
@@ -80,15 +104,5 @@ public class FeatureToggleService {
       return true;
     }
     return randomSource.nextDouble() * 100.0 < percentage;
-  }
-
-  private int effectivePercentage(FeatureToggleEntity toggle, UUID organizationId) {
-    if (organizationId == null) {
-      return toggle.getPercentage();
-    }
-    return overrideRepository
-        .findByToggleIdAndOrganizationId(toggle.getId(), organizationId)
-        .map(override -> override.getPercentage())
-        .orElse(toggle.getPercentage());
   }
 }

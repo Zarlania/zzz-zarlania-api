@@ -8,4 +8,4 @@ import java.util.UUID;
  * @param organizationId the organization the override applies to
  * @param percentage the override percentage: 0 = off, 100 = on, in between = partial
  */
-public record FeatureToggleOrgOverride(UUID organizationId, int percentage) {}
+public record FeatureToggleOrganizationOverride(UUID organizationId, int percentage) {}
