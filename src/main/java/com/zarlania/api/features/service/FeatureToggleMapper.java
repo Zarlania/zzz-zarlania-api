@@ -27,6 +27,7 @@ public class FeatureToggleMapper {
                     new FeatureToggleOrganizationOverride(
                         override.getOrganizationId(), override.getPercentage()))
             .toList();
-    return new FeatureToggle(entity.getName(), entity.getPercentage(), overrideDtos);
+    return new FeatureToggle(
+        entity.getName(), entity.getDescription(), entity.getPercentage(), overrideDtos);
   }
 }

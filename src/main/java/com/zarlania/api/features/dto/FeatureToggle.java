@@ -8,17 +8,22 @@ import java.util.List;
  * the application.
  *
  * @param name the toggle's registered (enum-constant) name
+ * @param description the toggle's code-owned, human-readable description
  * @param percentage the global percentage: 0 = off, 100 = on, in between = partial
  * @param organizationOverrides per-organization overrides; each wins unconditionally over the
  *     global percentage for its organization
  */
 public record FeatureToggle(
-    String name, int percentage, List<FeatureToggleOrganizationOverride> organizationOverrides) {
+    String name,
+    String description,
+    int percentage,
+    List<FeatureToggleOrganizationOverride> organizationOverrides) {
 
   /**
    * Stores an immutable copy of the overrides list.
    *
    * @param name the toggle name
+   * @param description the toggle description
    * @param percentage the global percentage
    * @param organizationOverrides the per-organization overrides
    */
