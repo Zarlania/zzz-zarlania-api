@@ -79,6 +79,11 @@ at `/v3/api-docs` or the admin documentation group described in ADR-0015.
   that percentage — the same caller or organization can land on either side on different
   requests. This makes partial state a deploy safety valve, not a mechanism for consistent
   per-user or per-organization experimentation.
+- Because a partial percentage is a per-request coin flip, a toggle that gates **required
+  user input** (rather than a purely additive dark-launch path) should be treated as on/off,
+  not ramped: at an intermediate percentage the input contract becomes nondeterministic per
+  request — the same submission could have its input honored on one call and ignored on the
+  next. Ramp such a toggle straight from 0 to 100.
 - A decision is pinned to the request's trace id for a bounded time-to-live, so that a single
   inbound request and every internal call it fans out to observe the same outcome for the
   same toggle, even under partial rollout.
