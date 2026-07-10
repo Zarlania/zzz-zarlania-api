@@ -8,7 +8,7 @@ import com.zarlania.api.features.repository.FeatureToggleOrganizationOverrideRep
 import com.zarlania.api.features.repository.FeatureToggleRepository;
 import com.zarlania.api.persistence.JpaConfig;
 import com.zarlania.api.support.AbstractIntegrationTest;
-import java.util.Set;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,7 +33,7 @@ class FeatureToggleSynchronizerIntegrationTest extends AbstractIntegrationTest {
   @Test
   void insertsMissingTogglesDefaultOff() {
     String name = "SYNC_NEW_" + UUID.randomUUID().toString().replace("-", "");
-    synchronizer().synchronize(Set.of(name));
+    synchronizer().synchronize(Map.of(name, "desc"));
     assertThat(featureToggleRepository.findByName(name))
         .hasValueSatisfying(created -> assertThat(created.getPercentage()).isZero());
   }
@@ -42,7 +42,7 @@ class FeatureToggleSynchronizerIntegrationTest extends AbstractIntegrationTest {
   void keepsExistingPercentageForKnownToggles() {
     String name = "SYNC_KEEP_" + UUID.randomUUID().toString().replace("-", "");
     saveToggle(name, 42);
-    synchronizer().synchronize(Set.of(name));
+    synchronizer().synchronize(Map.of(name, "desc"));
     assertThat(featureToggleRepository.findByName(name))
         .hasValueSatisfying(kept -> assertThat(kept.getPercentage()).isEqualTo(42));
   }
@@ -71,12 +71,37 @@ class FeatureToggleSynchronizerIntegrationTest extends AbstractIntegrationTest {
     featureToggleOrganizationOverrideRepository.saveAndFlush(override);
     entityManager.getEntityManager().clear();
 
-    synchronizer().synchronize(Set.of(keep));
+    synchronizer().synchronize(Map.of(keep, "desc"));
 
     assertThat(featureToggleRepository.findByName(orphan)).isEmpty();
     assertThat(featureToggleRepository.findByName(keep)).isPresent();
     assertThat(featureToggleOrganizationOverrideRepository.findByToggleId(orphanToggle.getId()))
         .isEmpty();
+  }
+
+  @Test
+  void insertsDescriptionForNewToggle() {
+    String name = "sync-desc-" + java.util.UUID.randomUUID();
+
+    synchronizer().synchronize(Map.of(name, "first description"));
+
+    assertThat(featureToggleRepository.findByName(name))
+        .get()
+        .extracting(FeatureToggleEntity::getDescription)
+        .isEqualTo("first description");
+  }
+
+  @Test
+  void updatesDescriptionWhenItChanges() {
+    String name = "sync-desc-" + java.util.UUID.randomUUID();
+    synchronizer().synchronize(Map.of(name, "old description"));
+
+    synchronizer().synchronize(Map.of(name, "new description"));
+
+    assertThat(featureToggleRepository.findByName(name))
+        .get()
+        .extracting(FeatureToggleEntity::getDescription)
+        .isEqualTo("new description");
   }
 
   private FeatureToggleSynchronizer synchronizer() {
