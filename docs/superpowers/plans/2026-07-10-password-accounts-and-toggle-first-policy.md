@@ -137,7 +137,7 @@ Expected: PASS.
 
 ```bash
 git add src/main/java/com/zarlania/api/features/Feature.java src/test/java/com/zarlania/api/features/FeatureTest.java
-git commit -m "feat: add description to Feature toggle registry (#<issue>)"
+git commit -m "feat: add description to Feature toggle registry (#72)"
 ```
 
 ---
@@ -197,10 +197,15 @@ ALTER TABLE feature_toggles
 In `FeatureToggleEntity.java`, add after the `percentage` field:
 
 ```java
-  /** Human-readable description, code-owned (the {@code Feature} enum) and synced at startup. */
+  /**
+   * Human-readable description, code-owned (the {@code Feature} enum) and written only by the
+   * startup synchronizer. Defaults to empty string — the pre-sync placeholder that mirrors the
+   * migration's {@code DEFAULT ''} — so an entity persisted before its description is set (e.g. in
+   * a test) never violates the {@code NOT NULL} column.
+   */
   @Setter
   @Column(name = "description", nullable = false, length = 500)
-  private String description;
+  private String description = "";
 ```
 
 - [ ] **Step 5: Run test to verify it passes**
@@ -212,7 +217,7 @@ Expected: PASS.
 
 ```bash
 git add src/main/resources/db/migration/V5__add_feature_toggle_description.sql src/main/java/com/zarlania/api/features/entity/FeatureToggleEntity.java src/test/java/com/zarlania/api/features/repository/FeatureToggleRepositoryIntegrationTest.java
-git commit -m "feat: persist feature toggle description column (#<issue>)"
+git commit -m "feat: persist feature toggle description column (#72)"
 ```
 
 ---
@@ -361,7 +366,7 @@ Expected: PASS.
 
 ```bash
 git add src/main/java/com/zarlania/api/features/service/FeatureToggleSynchronizer.java src/test/java/com/zarlania/api/features/service/FeatureToggleSynchronizerIntegrationTest.java
-git commit -m "feat: sync feature toggle descriptions from the enum at startup (#<issue>)"
+git commit -m "feat: sync feature toggle descriptions from the enum at startup (#72)"
 ```
 
 ---
@@ -448,7 +453,7 @@ Expected: PASS.
 
 ```bash
 git add src/main/java/com/zarlania/api/features/dto/FeatureToggle.java src/main/java/com/zarlania/api/features/service/FeatureToggleMapper.java src/test/java/com/zarlania/api/features/controller/FeatureToggleAdminControllerTest.java
-git commit -m "feat: expose feature toggle description via admin API (#<issue>)"
+git commit -m "feat: expose feature toggle description via admin API (#72)"
 ```
 
 ---
@@ -557,7 +562,7 @@ Expected: PASS.
 
 ```bash
 git add pom.xml src/main/java/com/zarlania/api/identity/config/IdentityConfig.java src/test/java/com/zarlania/api/identity/config/IdentityConfigTest.java
-git commit -m "feat: add spring-security-crypto bcrypt password encoder to identity (#<issue>)"
+git commit -m "feat: add spring-security-crypto bcrypt password encoder to identity (#72)"
 ```
 
 ---
@@ -716,7 +721,7 @@ Expected: PASS.
 
 ```bash
 git add src/main/java/com/zarlania/api/identity/service/PasswordPolicy.java src/test/java/com/zarlania/api/identity/service/PasswordPolicyTest.java
-git commit -m "feat: add identity password policy validation (#<issue>)"
+git commit -m "feat: add identity password policy validation (#72)"
 ```
 
 ---
@@ -896,7 +901,7 @@ Expected: PASS.
 
 ```bash
 git add src/main/resources/db/migration/V6__create_password_credentials.sql src/main/java/com/zarlania/api/identity/entity/PasswordCredentialEntity.java src/main/java/com/zarlania/api/identity/repository/PasswordCredentialRepository.java src/test/java/com/zarlania/api/identity/repository/PasswordCredentialRepositoryIntegrationTest.java
-git commit -m "feat: add password_credentials table, entity, and repository (#<issue>)"
+git commit -m "feat: add password_credentials table, entity, and repository (#72)"
 ```
 
 ---
@@ -904,21 +909,64 @@ git commit -m "feat: add password_credentials table, entity, and repository (#<i
 ## Task 8: `PasswordCredentialService`
 
 **Files:**
+- Create: `src/main/java/com/zarlania/api/identity/exception/PasswordCredentialAlreadyExistsException.java`
 - Create: `src/main/java/com/zarlania/api/identity/service/PasswordCredentialService.java`
+- Modify: `src/main/java/com/zarlania/api/web/ApiExceptionHandler.java`
 - Test: `src/test/java/com/zarlania/api/identity/service/PasswordCredentialServiceIntegrationTest.java` (create)
+- Test: `src/test/java/com/zarlania/api/web/ApiExceptionHandlerTest.java` (add a case)
 
 **Interfaces:**
-- Consumes: `PasswordPolicy.validate(...)`, `PasswordEncoder.encode(...)`, `PasswordCredentialRepository`.
-- Produces: `PasswordCredentialService.create(UUID userId, String rawPassword)` — validates the password, hashes it, and stores exactly one credential row. Throws `IllegalArgumentException` (from the policy) on an invalid password before touching the DB.
+- Consumes: `PasswordPolicy.validate(...)`, `PasswordEncoder.encode(...)`, `PasswordCredentialRepository`, `ConstraintViolations.matches(...)` (from `com.zarlania.api.persistence`).
+- Produces: `PasswordCredentialService.create(UUID userId, String rawPassword)` — validates the password, hashes it, and stores exactly one credential row. Throws `IllegalArgumentException` (from the policy, → 400) on an invalid password before touching the DB; throws `PasswordCredentialAlreadyExistsException` (→ 409) if a credential already exists for the user (the DB-enforced one-per-user invariant, caught and translated).
 
-- [ ] **Step 1: Write the failing test**
+**Why the catch:** the spec enforces one-credential-per-user *at the DB layer and catches it in code* (repo convention — mirrors how `UserService` translates `uq_users_email`). Account creation always passes a brand-new user id so it cannot trip this today, but the catch is the correct enforcement pattern and the seam future auth (set-password-for-existing-user) will rely on.
+
+- [ ] **Step 1: Create the domain exception**
+
+```java
+package com.zarlania.api.identity.exception;
+
+import java.util.UUID;
+import lombok.Getter;
+
+/** Thrown when creating a password credential for a user who already has one. */
+@Getter
+public class PasswordCredentialAlreadyExistsException extends RuntimeException {
+
+  /** The conflicting user id, kept as structured data and never embedded in the message. */
+  private final UUID userId;
+
+  private PasswordCredentialAlreadyExistsException(UUID userId, Throwable cause) {
+    super("A password credential already exists for the given user", cause);
+    this.userId = userId;
+  }
+
+  /**
+   * Creates the exception for a user who already has a password credential, chaining the
+   * persistence failure as the cause so its stack trace and DB context are preserved.
+   *
+   * @param userId the user already holding a credential
+   * @param cause the underlying integrity violation
+   * @return an exception describing the conflict
+   */
+  public static PasswordCredentialAlreadyExistsException forUserId(UUID userId, Throwable cause) {
+    return new PasswordCredentialAlreadyExistsException(userId, cause);
+  }
+}
+```
+
+- [ ] **Step 2: Write the failing tests**
+
+Service test — `PasswordCredentialServiceIntegrationTest`:
 
 ```java
 package com.zarlania.api.identity.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
+import com.zarlania.api.identity.exception.PasswordCredentialAlreadyExistsException;
 import com.zarlania.api.identity.repository.PasswordCredentialRepository;
 import com.zarlania.api.support.AbstractIntegrationTest;
 import com.zarlania.api.users.dto.User;
@@ -964,23 +1012,50 @@ class PasswordCredentialServiceIntegrationTest extends AbstractIntegrationTest {
 
     assertThat(passwordCredentialRepository.findByUserId(user.id())).isEmpty();
   }
+
+  @Test
+  void rejectsASecondCredentialForTheSameUser() {
+    User user = newUser();
+    passwordCredentialService.create(user.id(), "Str0ng!Pass");
+
+    assertThatExceptionOfType(PasswordCredentialAlreadyExistsException.class)
+        .isThrownBy(() -> passwordCredentialService.create(user.id(), "An0ther!Pass"));
+  }
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+Handler test — add to `ApiExceptionHandlerTest`:
 
-Run: `./mvnw -q test -Dtest=PasswordCredentialServiceIntegrationTest`
-Expected: FAIL — `PasswordCredentialService` not found.
+```java
+  @Test
+  void mapsPasswordCredentialConflictToConflict() {
+    ProblemDetail problem =
+        handler.handlePasswordCredentialConflict(
+            com.zarlania.api.identity.exception.PasswordCredentialAlreadyExistsException.forUserId(
+                java.util.UUID.randomUUID(), null));
 
-- [ ] **Step 3: Implement the service**
+    assertThat(problem.getStatus()).isEqualTo(HttpStatus.CONFLICT.value());
+    assertThat(problem.getDetail()).isEqualTo("A password credential already exists for this user");
+  }
+```
+
+- [ ] **Step 3: Run tests to verify they fail**
+
+Run: `./mvnw -q test -Dtest=PasswordCredentialServiceIntegrationTest,ApiExceptionHandlerTest`
+Expected: FAIL — `PasswordCredentialService` / `handlePasswordCredentialConflict` not found.
+
+- [ ] **Step 4: Implement the service (with catch-and-translate)**
 
 ```java
 package com.zarlania.api.identity.service;
 
 import com.zarlania.api.identity.entity.PasswordCredentialEntity;
+import com.zarlania.api.identity.exception.PasswordCredentialAlreadyExistsException;
 import com.zarlania.api.identity.repository.PasswordCredentialRepository;
+import com.zarlania.api.persistence.ConstraintViolations;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -989,13 +1064,16 @@ import org.springframework.transaction.annotation.Transactional;
  * Creates password credentials for the {@code identity} domain. Validates the raw password against
  * {@link PasswordPolicy}, hashes it with the configured {@link PasswordEncoder}, and stores the
  * hash — never the plaintext. The one-credential-per-user invariant is enforced by the {@code
- * uq_password_credentials_user} unique constraint; the only current caller (account creation)
- * always supplies a brand-new user id, so no in-app duplicate handling is needed yet. Verification
- * is the future seam authentication will add here.
+ * uq_password_credentials_user} unique constraint and translated to {@link
+ * PasswordCredentialAlreadyExistsException} when hit (mirrors {@code UserService}'s handling of the
+ * email/username constraints). Verification is the future seam authentication will add here.
  */
 @Service
 @RequiredArgsConstructor
 public class PasswordCredentialService {
+
+  /** Name of the one-per-user unique constraint in {@code V6__create_password_credentials.sql}. */
+  private static final String USER_UNIQUE_CONSTRAINT = "uq_password_credentials_user";
 
   private final PasswordCredentialRepository passwordCredentialRepository;
   private final PasswordPolicy passwordPolicy;
@@ -1007,6 +1085,7 @@ public class PasswordCredentialService {
    * @param userId the owning user's id
    * @param rawPassword the caller-supplied password
    * @throws IllegalArgumentException if the password fails {@link PasswordPolicy}
+   * @throws PasswordCredentialAlreadyExistsException if the user already has a credential
    */
   @Transactional
   public void create(UUID userId, String rawPassword) {
@@ -1014,21 +1093,45 @@ public class PasswordCredentialService {
     PasswordCredentialEntity credential = new PasswordCredentialEntity();
     credential.setUserId(userId);
     credential.setPasswordHash(passwordEncoder.encode(rawPassword));
-    passwordCredentialRepository.save(credential);
+    try {
+      // saveAndFlush forces the INSERT now so a duplicate surfaces here as the unique-constraint
+      // violation and is reported as the domain exception rather than a raw persistence error.
+      passwordCredentialRepository.saveAndFlush(credential);
+    } catch (DataIntegrityViolationException ex) {
+      if (ConstraintViolations.matches(ex, USER_UNIQUE_CONSTRAINT)) {
+        throw PasswordCredentialAlreadyExistsException.forUserId(userId, ex);
+      }
+      throw ex;
+    }
   }
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [ ] **Step 5: Add the exception handler**
 
-Run: `./mvnw -q test -Dtest=PasswordCredentialServiceIntegrationTest`
+In `ApiExceptionHandler.java`, add the import
+`import com.zarlania.api.identity.exception.PasswordCredentialAlreadyExistsException;`
+and a handler method next to `handlePersonalOrgConflict` (reuse the existing private `conflict(...)` helper):
+
+```java
+  /** Defensive: cannot occur for a brand-new account, but mapped to 409 rather than 500. */
+  @ExceptionHandler(PasswordCredentialAlreadyExistsException.class)
+  ProblemDetail handlePasswordCredentialConflict(PasswordCredentialAlreadyExistsException ex) {
+    return conflict("A password credential already exists for this user");
+  }
+```
+
+- [ ] **Step 6: Run tests to verify they pass**
+
+Run: `./mvnw -q test -Dtest=PasswordCredentialServiceIntegrationTest,ApiExceptionHandlerTest`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add src/main/java/com/zarlania/api/identity/service/PasswordCredentialService.java src/test/java/com/zarlania/api/identity/service/PasswordCredentialServiceIntegrationTest.java
-git commit -m "feat: add PasswordCredentialService to store hashed credentials (#<issue>)"
+git add src/main/java/com/zarlania/api/identity/exception/PasswordCredentialAlreadyExistsException.java src/main/java/com/zarlania/api/identity/service/PasswordCredentialService.java src/main/java/com/zarlania/api/web/ApiExceptionHandler.java
+git add src/test/java/com/zarlania/api/identity/service/PasswordCredentialServiceIntegrationTest.java src/test/java/com/zarlania/api/web/ApiExceptionHandlerTest.java
+git commit -m "feat: add PasswordCredentialService to store hashed credentials (#72)"
 ```
 
 ---
@@ -1219,7 +1322,7 @@ Expected: PASS.
 ```bash
 git add src/main/java/com/zarlania/api/identity/
 git add src/test/java/com/zarlania/api/identity/service/IdentityServiceIntegrationTest.java src/test/java/com/zarlania/api/identity/service/IdentityServiceTransactionalTest.java
-git commit -m "feat: create password credential at signup behind PASSWORD_ACCOUNTS toggle (#<issue>)"
+git commit -m "feat: create password credential at signup behind PASSWORD_ACCOUNTS toggle (#72)"
 ```
 
 ---
@@ -1314,7 +1417,7 @@ Expected: the four new tests are GREEN because Tasks 6–9 already implemented t
 
 ```bash
 git add src/test/java/com/zarlania/api/identity/controller/IdentityControllerTest.java
-git commit -m "test: e2e contract for password account creation (#<issue>)"
+git commit -m "test: e2e contract for password account creation (#72)"
 ```
 
 - [ ] **Step 4: Full verify (gates + coverage) before moving to docs**
@@ -1373,7 +1476,7 @@ In the **## Making a change** ordered list, add an item (renumber as needed):
 
 ```bash
 git add docs/adrs/ CLAUDE.md README.md
-git commit -m "docs: record feature-toggle-first policy (ADR-0016) (#<issue>)"
+git commit -m "docs: record feature-toggle-first policy (ADR-0016) (#72)"
 ```
 
 ---
@@ -1401,7 +1504,7 @@ Expected: PASS.
 
 ```bash
 git add docs/adrs/
-git commit -m "docs: record password credentials & bcrypt hashing decision (ADR-0017) (#<issue>)"
+git commit -m "docs: record password credentials & bcrypt hashing decision (ADR-0017) (#72)"
 ```
 
 ---
@@ -1424,7 +1527,7 @@ Expected: PASS.
 
 ```bash
 git add docs/reference/000003-feature-toggle-behavior-and-lifecycle.md
-git commit -m "docs: document toggle descriptions in reference doc 000003 (#<issue>)"
+git commit -m "docs: document toggle descriptions in reference doc 000003 (#72)"
 ```
 
 ---
@@ -1448,14 +1551,14 @@ Expected: BUILD SUCCESS with all gates green and coverage ≥ 80%.
 
 ```bash
 git add pom.xml
-git commit -m "chore: bump version to 0.7.0 (#<issue>)"
+git commit -m "chore: bump version to 0.7.0 (#72)"
 ```
 
 ---
 
 ## Self-review notes (for the executor)
 
-- **`#<issue>`** placeholders in commit messages: replace with the real GitHub issue number (CLAUDE.md requires every change to tie to an issue; the PR title must reference it). If no issue exists yet, create one before opening the PR.
+- **`#72`** placeholders in commit messages: replace with the real GitHub issue number (CLAUDE.md requires every change to tie to an issue; the PR title must reference it). If no issue exists yet, create one before opening the PR.
 - **Toggle visibility in tests:** several tests flip `password-accounts` to 100 via `FeatureToggleAdminService` and then act in the same transaction/thread. The sibling `FeatureToggleAdminServiceIntegrationTest` is the reference for the established enabling pattern — follow it rather than inventing a new mechanism.
 - **Coverage:** if `./mvnw verify` reports < 80% on new code, add a *meaningful* behavioral test (e.g. an additional `PasswordPolicy` branch or an `IdentityService` path), never an exclude or threshold change.
 - **Do not edit existing migrations** (V1–V4); only add V5 and V6.
