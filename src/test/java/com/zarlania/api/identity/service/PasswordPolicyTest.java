@@ -36,6 +36,14 @@ class PasswordPolicyTest {
   }
 
   @Test
+  void countsCodePointsNotUtf16UnitsForMinimumLength() {
+    // "Aa1!" + two U+1F600 emoji = 8 UTF-16 code units but only 6 code points, so it is too short
+    // and must be rejected — a char-count check would have wrongly accepted it.
+    String sixCodePoints = "Aa1!😀😀";
+    assertThatIllegalArgumentException().isThrownBy(() -> policy.validate(sixCodePoints));
+  }
+
+  @Test
   void rejectsMissingUppercase() {
     assertThatIllegalArgumentException().isThrownBy(() -> policy.validate("str0ng!pass"));
   }

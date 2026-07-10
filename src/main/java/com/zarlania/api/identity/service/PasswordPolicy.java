@@ -19,14 +19,18 @@ public class PasswordPolicy {
    * Validates the given raw password.
    *
    * @param rawPassword the caller-supplied password
-   * @throws IllegalArgumentException if the password is null, blank, shorter than 8 characters,
-   *     longer than 72 bytes, or missing an uppercase letter, lowercase letter, digit, or symbol
+   * @throws IllegalArgumentException if the password is null, blank, fewer than 8 characters
+   *     (Unicode code points), longer than 72 bytes, or missing an uppercase letter, lowercase
+   *     letter, digit, or symbol
    */
   public void validate(String rawPassword) {
     if (rawPassword == null || rawPassword.isBlank()) {
       throw new IllegalArgumentException("password is required");
     }
-    if (rawPassword.length() < MIN_LENGTH) {
+    // Count Unicode code points, not UTF-16 code units, so a password made of supplementary
+    // characters (e.g. emoji, which are surrogate pairs) is measured by how many characters it
+    // actually has rather than counting each astral character twice.
+    if (rawPassword.codePointCount(0, rawPassword.length()) < MIN_LENGTH) {
       throw new IllegalArgumentException("password must be at least " + MIN_LENGTH + " characters");
     }
     if (rawPassword.getBytes(StandardCharsets.UTF_8).length > MAX_BYTES) {
@@ -36,20 +40,21 @@ public class PasswordPolicy {
     boolean hasLower = false;
     boolean hasDigit = false;
     boolean hasSymbol = false;
-    for (int i = 0; i < rawPassword.length(); i++) {
-      char c = rawPassword.charAt(i);
-      if (Character.isUpperCase(c)) {
+    for (int i = 0; i < rawPassword.length(); ) {
+      int codePoint = rawPassword.codePointAt(i);
+      if (Character.isUpperCase(codePoint)) {
         hasUpper = true;
       }
-      if (Character.isLowerCase(c)) {
+      if (Character.isLowerCase(codePoint)) {
         hasLower = true;
       }
-      if (Character.isDigit(c)) {
+      if (Character.isDigit(codePoint)) {
         hasDigit = true;
       }
-      if (!Character.isLetterOrDigit(c)) {
+      if (!Character.isLetterOrDigit(codePoint)) {
         hasSymbol = true;
       }
+      i += Character.charCount(codePoint);
     }
     if (!hasUpper || !hasLower || !hasDigit || !hasSymbol) {
       throw new IllegalArgumentException(

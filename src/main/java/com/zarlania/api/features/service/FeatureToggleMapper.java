@@ -16,7 +16,7 @@ public class FeatureToggleMapper {
    *
    * @param entity the toggle entity
    * @param overrides the toggle's organization overrides
-   * @return a DTO carrying the name, global percentage, and per-organization overrides
+   * @return a DTO carrying the name, description, global percentage, and per-organization overrides
    */
   public FeatureToggle toDto(
       FeatureToggleEntity entity, List<FeatureToggleOrganizationOverrideEntity> overrides) {

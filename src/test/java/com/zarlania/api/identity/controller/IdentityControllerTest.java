@@ -204,4 +204,27 @@ class IdentityControllerTest {
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.detail").exists());
   }
+
+  @Test
+  void validatesPasswordBeforeReportingDuplicateWhenToggleOn() throws Exception {
+    featureToggleAdminService.setPercentage("password-accounts", 100);
+    String email = unique("dupe") + "@example.com";
+    // Seed an account holding this email so the retry below also collides on it.
+    mockMvc
+        .perform(
+            post("/accounts")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(bodyWithPassword(email, unique("s"), "Str0ng!Pass")))
+        .andExpect(status().isCreated());
+
+    // A retry with the same (taken) email AND a weak password must fail fast on the password (400),
+    // not surface the email conflict (409) first — password is validated before any write.
+    mockMvc
+        .perform(
+            post("/accounts")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(bodyWithPassword(email, unique("s"), "weak")))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.detail").exists());
+  }
 }

@@ -27,6 +27,7 @@ public class IdentityService {
   private final UserService userService;
   private final OrganizationService organizationService;
   private final PasswordCredentialService passwordCredentialService;
+  private final PasswordPolicy passwordPolicy;
   private final FeatureToggleService featureToggleService;
 
   /**
@@ -42,15 +43,25 @@ public class IdentityService {
    * @param email the new user's email
    * @param username the new user's unique public handle
    * @param password the new user's password; honored only when the toggle is enabled, where it is
-   *     required and validated by {@code PasswordPolicy}
+   *     required and validated by {@code PasswordPolicy} before any account state is written
    * @return the created account (user + personal organization)
    */
   @Transactional
   public Account createAccount(String email, String username, String password) {
+    // Evaluate the gate once for a single, consistent decision across this signup.
+    boolean withPassword = featureToggleService.isEnabled(Feature.PASSWORD_ACCOUNTS);
+    if (withPassword) {
+      // Validate the supplied password up front, before any user/organization row is written, so a
+      // policy failure is a fast 400 at the boundary — never masked by an email/username/org-name
+      // conflict from the writes below that would otherwise surface (409) first. The credential
+      // store re-validates as its own guard (defense in depth, mirroring the two-boundary
+      // duplication documented in CreateAccountRequest).
+      passwordPolicy.validate(password);
+    }
     User user = userService.create(email, username);
     Organization personalOrganization =
         organizationService.createPersonalOrganization(user.id(), user.username());
-    if (featureToggleService.isEnabled(Feature.PASSWORD_ACCOUNTS)) {
+    if (withPassword) {
       passwordCredentialService.create(user.id(), password);
     }
     // Log identifiers only — never the email or password (PII/secret). Sanitised via LogSanitizer
