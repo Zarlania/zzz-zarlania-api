@@ -26,7 +26,8 @@ public class IdentityController {
    */
   @PostMapping("/accounts")
   public ResponseEntity<Account> createAccount(@Valid @RequestBody CreateAccountRequest request) {
-    Account account = identityService.createAccount(request.email(), request.username());
+    Account account =
+        identityService.createAccount(request.email(), request.username(), request.password());
     return ResponseEntity.status(HttpStatus.CREATED).body(account);
   }
 }
