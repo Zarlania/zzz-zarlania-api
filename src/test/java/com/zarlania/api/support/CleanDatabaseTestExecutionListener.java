@@ -24,9 +24,11 @@ import org.springframework.test.jdbc.JdbcTestUtils;
  */
 public class CleanDatabaseTestExecutionListener extends AbstractTestExecutionListener {
 
+  // UPPER(...) because DATABASE_TO_LOWER=TRUE (see pom.xml Surefire config) makes H2 report the
+  // schema name as lowercase 'public'; comparing case-insensitively keeps this robust either way.
   private static final String SELECT_APPLICATION_TABLES =
       "SELECT table_name FROM information_schema.tables "
-          + "WHERE table_schema = 'PUBLIC' AND table_type = 'BASE TABLE' "
+          + "WHERE UPPER(table_schema) = 'PUBLIC' AND table_type = 'BASE TABLE' "
           + "AND UPPER(table_name) <> 'FLYWAY_SCHEMA_HISTORY'";
 
   @Override

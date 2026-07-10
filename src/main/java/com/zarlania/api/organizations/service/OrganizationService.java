@@ -13,8 +13,8 @@ import com.zarlania.api.organizations.exception.PersonalOrganizationAlreadyExist
 import com.zarlania.api.organizations.exception.PersonalOrganizationMembershipException;
 import com.zarlania.api.organizations.repository.MembershipRepository;
 import com.zarlania.api.organizations.repository.OrganizationRepository;
+import com.zarlania.api.persistence.ConstraintViolations;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -181,7 +181,7 @@ public class OrganizationService {
       // surfaces here as the name unique-constraint violation rather than at commit time.
       return organizationRepository.saveAndFlush(organization);
     } catch (DataIntegrityViolationException ex) {
-      if (isConstraintViolation(ex, NAME_UNIQUE_CONSTRAINT)) {
+      if (ConstraintViolations.matches(ex, NAME_UNIQUE_CONSTRAINT)) {
         throw OrganizationNameAlreadyExistsException.forName(name);
       }
       throw ex;
@@ -205,27 +205,11 @@ public class OrganizationService {
       // violation and is reported as the domain exception rather than a raw persistence error.
       return membershipRepository.saveAndFlush(membership);
     } catch (DataIntegrityViolationException ex) {
-      if (isConstraintViolation(ex, MEMBERSHIP_UNIQUE_CONSTRAINT)) {
+      if (ConstraintViolations.matches(ex, MEMBERSHIP_UNIQUE_CONSTRAINT)) {
         throw DuplicateMembershipException.forMembership(organizationId, userId);
       }
       throw ex;
     }
-  }
-
-  /**
-   * Reports whether the violation's cause chain names the given constraint. Matching the constraint
-   * name (which appears in both H2 and PostgreSQL messages) avoids catching unrelated integrity
-   * failures and avoids depending on a JPA-provider-specific typed exception.
-   */
-  private static boolean isConstraintViolation(
-      DataIntegrityViolationException ex, String constraintName) {
-    for (Throwable cause = ex; cause != null; cause = cause.getCause()) {
-      String message = String.valueOf(cause.getMessage()).toLowerCase(Locale.ROOT);
-      if (message.contains(constraintName)) {
-        return true;
-      }
-    }
-    return false;
   }
 
   private static void requireNonNull(UUID value, String field) {

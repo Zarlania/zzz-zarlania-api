@@ -18,4 +18,24 @@
     <Bug pattern="SPRING_ENDPOINT"/>
   </Match>
 
+  <!--
+    FindSecBugs SERVLET_HEADER ("Request header can easily be altered by the client"):
+    an informational taint-source detector that fires on every HttpServletRequest.getHeader()
+    call — it flags the read itself, not a flow to a dangerous sink, so no downstream
+    sanitization can remove it. TraceIdFilter deliberately treats these headers as untrusted:
+    it validates the W3C `traceparent` and `X-Trace-Id` values against strict regex charsets
+    and falls back to a generated UUID, so no unvalidated client value reaches the response
+    header, the logging MDC, or the trace-decision cache key. That mitigation is proven by
+    TraceIdFilterTest.rejectsUnsafeTraceIdAndGeneratesInstead (a CRLF payload is rejected and
+    regenerated) and ignoresMalformedTraceparentAndGeneratesInstead. Scoped to TraceIdFilter
+    only — NOT a global suppression — so any future code that reads request headers still gets
+    flagged for a fresh validation review. Introduced with issue #66 (the trace-id filter);
+    see issue #67 (durable record for this exclusion). See also issue #48 (SPRING_ENDPOINT)
+    for the same informational-detector exclusion pattern.
+  -->
+  <Match>
+    <Class name="com.zarlania.api.web.TraceIdFilter"/>
+    <Bug pattern="SERVLET_HEADER"/>
+  </Match>
+
 </FindBugsFilter>
