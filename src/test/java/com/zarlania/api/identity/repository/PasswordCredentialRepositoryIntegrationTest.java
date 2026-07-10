@@ -36,7 +36,7 @@ class PasswordCredentialRepositoryIntegrationTest extends AbstractIntegrationTes
   private PasswordCredentialEntity credentialFor(UUID userId) {
     PasswordCredentialEntity credential = new PasswordCredentialEntity();
     credential.setUserId(userId);
-    credential.setPasswordHash("{bcrypt}$2a$12$abcdefghijklmnopqrstuv");
+    credential.setPasswordHash("{bcrypt}$2a$12$" + UUID.randomUUID().toString().replace("-", ""));
     return credential;
   }
 
