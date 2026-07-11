@@ -1425,7 +1425,9 @@ git add src/main/resources/db/migration/V7__create_refresh_tokens.sql src/main/j
 git commit -m "feat: refresh_tokens store with family index and DB-level integrity (#75)"
 ```
 
----### Task 7: `RefreshTokenService` — mint, rotate, reuse detection, revoke
+---
+
+### Task 7: `RefreshTokenService` — mint, rotate, reuse detection, revoke
 
 **Files:**
 - Create: `src/main/java/com/zarlania/api/auth/service/RefreshTokenService.java`
