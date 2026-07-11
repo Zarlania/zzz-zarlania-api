@@ -161,6 +161,22 @@ public class OrganizationService {
         .toList();
   }
 
+  /**
+   * Finds the user's personal organization — the organization every issued token is scoped to at
+   * login while personal organizations are each user's only organization.
+   *
+   * @param ownerUserId the owning user's id
+   * @return the personal organization as a DTO, if one exists
+   */
+  @Transactional(readOnly = true)
+  public Optional<Organization> findPersonalOrganization(UUID ownerUserId) {
+    return membershipRepository
+        .findFirstByUserIdAndRoleAndOrganizationType(
+            ownerUserId, MembershipRole.OWNER, OrganizationType.PERSONAL)
+        .map(MembershipEntity::getOrganization)
+        .map(organizationMapper::toDto);
+  }
+
   private OrganizationEntity requireGeneralOrganization(UUID organizationId) {
     OrganizationEntity organization =
         organizationRepository

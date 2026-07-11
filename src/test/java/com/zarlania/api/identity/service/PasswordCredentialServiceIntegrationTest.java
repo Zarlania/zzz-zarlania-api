@@ -66,4 +66,36 @@ class PasswordCredentialServiceIntegrationTest extends AbstractIntegrationTest {
     assertThatExceptionOfType(PasswordCredentialAlreadyExistsException.class)
         .isThrownBy(() -> passwordCredentialService.create(user.id(), "An0ther!Pass"));
   }
+
+  @Test
+  void verifyAcceptsTheCorrectPassword() {
+    User user = newUser();
+    passwordCredentialService.create(user.id(), "Str0ng!Pass");
+    assertThat(passwordCredentialService.verify(user.id(), "Str0ng!Pass")).isTrue();
+  }
+
+  @Test
+  void verifyRejectsWrongPassword() {
+    User user = newUser();
+    passwordCredentialService.create(user.id(), "Str0ng!Pass");
+    assertThat(passwordCredentialService.verify(user.id(), "Wr0ng!Pass")).isFalse();
+  }
+
+  @Test
+  void verifyRejectsUserWithoutCredential() {
+    User user = newUser();
+    assertThat(passwordCredentialService.verify(user.id(), "Str0ng!Pass")).isFalse();
+  }
+
+  @Test
+  void verifyRejectsNullUserWithoutThrowing() {
+    assertThat(passwordCredentialService.verify(null, "Str0ng!Pass")).isFalse();
+  }
+
+  @Test
+  void verifyRejectsBlankPassword() {
+    User user = newUser();
+    passwordCredentialService.create(user.id(), "Str0ng!Pass");
+    assertThat(passwordCredentialService.verify(user.id(), "  ")).isFalse();
+  }
 }

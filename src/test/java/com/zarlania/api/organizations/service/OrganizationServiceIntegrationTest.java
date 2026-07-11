@@ -232,4 +232,30 @@ class OrganizationServiceIntegrationTest extends AbstractIntegrationTest {
   void findByIdIsEmptyForAnUnknownOrganization() {
     assertThat(service.findById(UUID.randomUUID())).isEmpty();
   }
+
+  @Test
+  void findsThePersonalOrganizationForItsOwner() {
+    UUID owner = seedUser("owner@example.com");
+    Organization created = service.createPersonalOrganization(owner, "own-name");
+
+    assertThat(service.findPersonalOrganization(owner))
+        .hasValueSatisfying(
+            found -> {
+              assertThat(found.id()).isEqualTo(created.id());
+              assertThat(found.type()).isEqualTo(OrganizationType.PERSONAL);
+            });
+  }
+
+  @Test
+  void personalOrganizationLookupIsEmptyForUserWithoutOne() {
+    UUID owner = seedUser("owner@example.com");
+    assertThat(service.findPersonalOrganization(owner)).isEmpty();
+  }
+
+  @Test
+  void personalOrganizationLookupIgnoresGeneralOrganizations() {
+    UUID owner = seedUser("owner@example.com");
+    service.createGeneralOrganization(owner, "gen-" + owner);
+    assertThat(service.findPersonalOrganization(owner)).isEmpty();
+  }
 }
