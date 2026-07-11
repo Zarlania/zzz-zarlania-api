@@ -59,14 +59,16 @@ public class RefreshTokenService {
    * Rotates a refresh token: consumes the presented one and issues a successor in the same family.
    * Consumption is atomic at the database layer, so of concurrent presentations of the same token
    * exactly one wins; every other caller — including a replay of an already-consumed or revoked
-   * token — revokes the whole family before rejecting.
+   * token — revokes the whole family before rejecting. That replay-triggered family revocation is
+   * durable: {@link InvalidRefreshTokenException} does not roll the transaction back, so the
+   * rejection the caller sees never undoes the revocations just written.
    *
    * @param rawToken the presented raw refresh token
    * @return the rotation result
    * @throws InvalidRefreshTokenException if the token is unknown, expired, revoked, or already
    *     consumed
    */
-  @Transactional
+  @Transactional(noRollbackFor = InvalidRefreshTokenException.class)
   public RefreshRotation rotate(String rawToken) {
     RefreshTokenEntity row =
         refreshTokenRepository
