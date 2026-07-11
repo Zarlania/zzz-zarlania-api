@@ -47,10 +47,15 @@ docker compose up --build       # run the app in its container locally on :8080
 `./mvnw spring-boot:run` and `docker compose up --build` both serve on
 <http://localhost:8080>.
 
-No environment variables are required to boot. Local config is env-driven: `docker compose`
-sets `ZARLANIA_CORS_ALLOWED_ORIGINS` to localhost origins so a local frontend can call the
-API, whereas `./mvnw spring-boot:run` uses the production-origin defaults. Override
-`ZARLANIA_CORS_ALLOWED_ORIGINS` (and `PORT`) via your environment as needed.
+Local config is env-driven: `docker compose` sets `ZARLANIA_CORS_ALLOWED_ORIGINS` to
+localhost origins so a local frontend can call the API, whereas `./mvnw spring-boot:run` uses
+the production-origin defaults. Override `ZARLANIA_CORS_ALLOWED_ORIGINS` (and `PORT`) via your
+environment as needed.
+
+One environment variable **is** required to boot: `ZARLANIA_AUTH_JWT_SIGNING_SECRET`, the
+HS256 secret used to sign and verify access tokens (at least 32 bytes). The app fails fast at
+startup without it. Generate one with `openssl rand -base64 48` and set it in Render's
+environment variables and your local `.env` (git-ignored) — never in a committed file.
 
 ## Finding the API
 
