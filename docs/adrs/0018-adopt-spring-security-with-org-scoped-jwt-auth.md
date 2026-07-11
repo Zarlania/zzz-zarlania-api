@@ -112,6 +112,15 @@ to opt it *out*, never add a check to opt it in. This retires ADR-0015's "obscur
 security" caveat for `/api/admin/**`: those endpoints now sit behind the same deny-by-default
 rule as everything else, gated by `AUTH_ENFORCEMENT` rather than by path secrecy.
 
+Adopting the chain also ships two changes that are always on, not toggle-gated: (a) Spring
+Security's default response headers on every response (`X-Frame-Options: DENY`,
+`X-Content-Type-Options: nosniff`, the `Cache-Control: no-store` family, `X-XSS-Protection:
+0`), and (b) a request bearing an `Authorization: Bearer` header that fails to parse or
+validate is rejected `401` by the resource-server filter even while `AUTH_ENFORCEMENT` is off —
+only the *absence* of a token is permitted on a permit-listed path pre-enforcement, not the
+presence of a bad one. Both are accepted as part of the adopted security posture — the
+infrastructure of the chain itself — rather than behavior ADR-0016 requires gating.
+
 ### The one-token-one-organization law
 
 Every token this service issues — a user's token today, a future service token, a future

@@ -24,7 +24,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import(JpaConfig.class)
-class RefreshTokenRepositoryTest extends AbstractIntegrationTest {
+class RefreshTokenRepositoryIntegrationTest extends AbstractIntegrationTest {
 
   @Autowired private RefreshTokenRepository refreshTokenRepository;
   @Autowired private TestEntityManager entityManager;

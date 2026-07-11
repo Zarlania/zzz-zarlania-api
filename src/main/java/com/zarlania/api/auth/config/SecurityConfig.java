@@ -1,6 +1,7 @@
 package com.zarlania.api.auth.config;
 
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
+import jakarta.servlet.DispatcherType;
 import java.nio.charset.StandardCharsets;
 import javax.crypto.spec.SecretKeySpec;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -53,7 +54,19 @@ public class SecurityConfig {
           .cors(Customizer.withDefaults())
           .authorizeHttpRequests(
               auth ->
-                  auth.requestMatchers(HttpMethod.OPTIONS, "/**")
+                  // Error (ASYNC-forwarded) dispatches carry the original request's outcome, not
+                  // a fresh caller-driven request: an unhandled exception on a permit-listed
+                  // anonymous endpoint forwards to /error as an ERROR dispatch, which must not be
+                  // authenticated — doing so would turn a 500 into a masking 401. MockMvc cannot
+                  // synthesize a true ERROR dispatch, so /error is also permit-listed as a REQUEST
+                  // path; both matchers are required and complementary (dispatcherTypeMatchers
+                  // covers the real ERROR forward Boot performs in production, requestMatchers
+                  // covers /error reached directly, e.g. in tests).
+                  auth.dispatcherTypeMatchers(DispatcherType.ERROR)
+                      .permitAll()
+                      .requestMatchers("/error")
+                      .permitAll()
+                      .requestMatchers(HttpMethod.OPTIONS, "/**")
                       .permitAll()
                       .requestMatchers(HttpMethod.POST, "/accounts")
                       .permitAll()

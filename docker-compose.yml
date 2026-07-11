@@ -6,3 +6,4 @@ services:
     environment:
       PORT: "8080"
       ZARLANIA_CORS_ALLOWED_ORIGINS: "http://localhost:4200,http://localhost:8080"
+      ZARLANIA_AUTH_JWT_SIGNING_SECRET: "${ZARLANIA_AUTH_JWT_SIGNING_SECRET:?set ZARLANIA_AUTH_JWT_SIGNING_SECRET in .env}"

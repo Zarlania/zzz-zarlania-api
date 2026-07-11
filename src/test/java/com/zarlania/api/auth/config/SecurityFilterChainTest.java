@@ -79,6 +79,16 @@ class SecurityFilterChainTest {
   }
 
   @Test
+  void errorDispatchStaysOpenWhenEnforcementOn() throws Exception {
+    // An unhandled exception on a permit-listed anonymous endpoint forwards to /error as an
+    // ERROR dispatch; it must never be authenticated, or a 500 masquerades as a 401. Boot's
+    // BasicErrorController handles the bare GET /error here with no forwarded status attribute,
+    // so it reports 500 — the point of this test is that it is NOT 401.
+    enforcementOn();
+    mockMvc.perform(get("/error")).andExpect(status().isInternalServerError());
+  }
+
+  @Test
   void responsesAreStatelessNoSessionCookieEverIssued() throws Exception {
     // Compensating test for the deliberate csrf().disable(): the API is stateless — no
     // session is created, so no cookie exists for a cross-site request to ride.

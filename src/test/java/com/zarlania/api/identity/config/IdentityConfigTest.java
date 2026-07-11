@@ -28,6 +28,9 @@ class IdentityConfigTest {
     String hash = encoder.encode("Str0ng!Pass");
     assertThat(hash).startsWith("{argon2}");
     assertThat(hash).startsWith("{argon2}$argon2id$"); // id variant, not i/d
+    // Guards the production OWASP KDF parameters (19 MiB memory, 2 iterations, parallelism 1)
+    // against silent regression: Argon2PasswordEncoder serializes them into the hash itself.
+    assertThat(hash).contains("m=19456,t=2,p=1");
     assertThat(encoder.matches("Str0ng!Pass", hash)).isTrue();
     assertThat(encoder.matches("wrong", hash)).isFalse();
   }

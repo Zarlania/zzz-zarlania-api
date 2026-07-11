@@ -104,6 +104,11 @@ does **not** describe endpoint shapes, request/response bodies, or status codes 
   starts requiring one. Turning `AUTH_ENFORCEMENT` on while `PASSWORD_LOGIN` is still off would
   lock every non-permit-listed endpoint with no way for a caller to obtain a token in the
   first place.
+- `AUTH_ENFORCEMENT` must only ever be set to `0` or `100` — never a partial percentage. The
+  feature-toggle service's rollout is keyed on a client-supplied trace id, so a partial
+  percentage is shoppable by an adversary: a caller can simply retry with different trace ids
+  until one lands outside the enforced slice, meaning partial enforcement provides no actual
+  protection while looking like a gradual, safer rollout.
 
 ### Permit-list philosophy
 

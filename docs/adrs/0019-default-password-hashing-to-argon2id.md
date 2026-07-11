@@ -128,3 +128,5 @@ characters a user actually types.
   toggle this ADR leaves unchanged)
 - ADR-0017: Store password credentials in the identity domain, hashed with bcrypt (amended by
   this ADR — its bcrypt-default clause only; the rest of that ADR stands)
+- ADR-0018: Adopt Spring Security with org-scoped JWT auth (login is the point at which this
+  ADR's stronger default is actually verified against an attacker-reachable input)
