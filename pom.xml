@@ -50,6 +50,14 @@
 			<artifactId>spring-security-crypto</artifactId>
 		</dependency>
 
+		<!-- Supplies the Argon2 primitive used by spring-security-crypto's
+		     Argon2PasswordEncoder (ADR: Argon2id default, amending ADR-0017). -->
+		<dependency>
+			<groupId>org.bouncycastle</groupId>
+			<artifactId>bcprov-jdk18on</artifactId>
+			<version>1.81</version>
+		</dependency>
+
 		<dependency>
 			<groupId>org.springdoc</groupId>
 			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>

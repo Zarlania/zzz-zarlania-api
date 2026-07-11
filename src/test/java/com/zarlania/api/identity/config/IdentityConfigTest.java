@@ -13,12 +13,22 @@ class IdentityConfigTest {
   @Autowired private PasswordEncoder passwordEncoder;
 
   @Test
-  void encodesToBcryptPrefixedHashThatIsNotThePlaintext() {
+  void encodesToArgon2PrefixedHashThatIsNotThePlaintext() {
     String raw = "Str0ng!Pass";
     String encoded = passwordEncoder.encode(raw);
 
-    assertThat(encoded).startsWith("{bcrypt}").doesNotContain(raw);
+    assertThat(encoded).startsWith("{argon2}").doesNotContain(raw);
     assertThat(passwordEncoder.matches(raw, encoded)).isTrue();
     assertThat(passwordEncoder.matches("wrong", encoded)).isFalse();
+  }
+
+  @Test
+  void encodesWithArgon2idByDefaultAndStillVerifies() {
+    PasswordEncoder encoder = new IdentityConfig().passwordEncoder();
+    String hash = encoder.encode("Str0ng!Pass");
+    assertThat(hash).startsWith("{argon2}");
+    assertThat(hash).startsWith("{argon2}$argon2id$"); // id variant, not i/d
+    assertThat(encoder.matches("Str0ng!Pass", hash)).isTrue();
+    assertThat(encoder.matches("wrong", hash)).isFalse();
   }
 }

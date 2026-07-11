@@ -2,6 +2,7 @@ package com.zarlania.api.identity.service;
 
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.Test;
 
@@ -30,9 +31,18 @@ class PasswordPolicyTest {
   }
 
   @Test
-  void rejectsOver72Bytes() {
-    String longPassword = "Aa1!" + "a".repeat(70); // 74 bytes
-    assertThatIllegalArgumentException().isThrownBy(() -> policy.validate(longPassword));
+  void accepts128CharacterPassword() {
+    // 124 filler chars + the 4 required classes = exactly 128.
+    String password = "Aa1!" + "x".repeat(124);
+    assertThatCode(() -> policy.validate(password)).doesNotThrowAnyException();
+  }
+
+  @Test
+  void rejects129CharacterPassword() {
+    String password = "Aa1!" + "x".repeat(125);
+    assertThatThrownBy(() -> policy.validate(password))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("password must be at most 128 characters");
   }
 
   @Test

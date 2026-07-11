@@ -37,14 +37,14 @@ class PasswordCredentialServiceIntegrationTest extends AbstractIntegrationTest {
   }
 
   @Test
-  void storesTheBcryptHashThatVerifiesAndIsNotThePlaintext() {
+  void storesTheArgon2HashThatVerifiesAndIsNotThePlaintext() {
     User user = newUser();
     String raw = "Str0ng!Pass";
 
     passwordCredentialService.create(user.id(), raw);
 
     var stored = passwordCredentialRepository.findByUserId(user.id()).orElseThrow();
-    assertThat(stored.getPasswordHash()).startsWith("{bcrypt}").isNotEqualTo(raw);
+    assertThat(stored.getPasswordHash()).startsWith("{argon2}").isNotEqualTo(raw);
     assertThat(passwordEncoder.matches(raw, stored.getPasswordHash())).isTrue();
   }
 

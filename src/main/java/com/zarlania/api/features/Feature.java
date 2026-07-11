@@ -19,10 +19,10 @@ public enum Feature {
       "Permanent no-op toggle for smoke-testing the feature-toggle mechanism in production. "
           + "Gates no real feature."),
 
-  /** Gates accepting and storing a bcrypt password credential when an account is created. */
+  /** Gates accepting and storing a hashed password credential when an account is created. */
   PASSWORD_ACCOUNTS(
       "password-accounts",
-      "Accept and store a bcrypt password credential when an account is created."),
+      "Accept and store a hashed password credential when an account is created."),
 
   /** Gates the password-login surface: POST /auth/login, /auth/refresh, /auth/logout. */
   PASSWORD_LOGIN(
