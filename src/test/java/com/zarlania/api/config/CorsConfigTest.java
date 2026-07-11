@@ -10,17 +10,20 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.web.context.WebApplicationContext;
 
+// @AutoConfigureMockMvc (rather than a bare WebApplicationContext-backed MockMvc) so the
+// autowired MockMvc runs requests through the registered springSecurityFilterChain — CORS now
+// lives in Spring Security's CORS filter (issue #75), not the MVC handler-mapping layer.
 @SpringBootTest(properties = "zarlania.cors.allowed-origins=https://zarlania.com")
+@AutoConfigureMockMvc
 class CorsConfigTest {
 
-  @Autowired private WebApplicationContext context;
+  @Autowired private MockMvc mockMvc;
 
   private MockMvc mockMvc() {
-    return MockMvcBuilders.webAppContextSetup(context).build();
+    return mockMvc;
   }
 
   @Test
@@ -101,5 +104,20 @@ class CorsConfigTest {
         .andExpect(status().isOk())
         .andExpect(header().string("Access-Control-Allow-Origin", "https://zarlania.com"))
         .andExpect(header().string("Access-Control-Allow-Methods", containsString("DELETE")));
+  }
+
+  @Test
+  void preflightAllowsAuthorizationHeader() throws Exception {
+    mockMvc()
+        .perform(
+            options("/api/admin/feature-toggles")
+                .header("Origin", "https://zarlania.com")
+                .header("Access-Control-Request-Method", "PUT")
+                .header("Access-Control-Request-Headers", "Authorization"))
+        .andExpect(status().isOk())
+        .andExpect(
+            header()
+                .string(
+                    "Access-Control-Allow-Headers", containsStringIgnoringCase("authorization")));
   }
 }
