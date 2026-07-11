@@ -5,8 +5,21 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.Arrays;
 import org.junit.jupiter.api.Test;
 
-/** The code registry contract for the auth toggles introduced by issue #75. */
+/** The code registry contract of the {@link Feature} toggles. */
 class FeatureTest {
+
+  @Test
+  void everyFeatureHasNonBlankNameAndDescription() {
+    for (Feature feature : Feature.values()) {
+      assertThat(feature.toggleName()).as("toggleName of %s", feature).isNotBlank();
+      assertThat(feature.description()).as("description of %s", feature).isNotBlank();
+    }
+  }
+
+  @Test
+  void passwordAccountsToggleIsRegistered() {
+    assertThat(Feature.PASSWORD_ACCOUNTS.toggleName()).isEqualTo("password-accounts");
+  }
 
   @Test
   void passwordLoginToggleIsRegistered() {
