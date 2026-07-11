@@ -22,7 +22,19 @@ public enum Feature {
   /** Gates accepting and storing a bcrypt password credential when an account is created. */
   PASSWORD_ACCOUNTS(
       "password-accounts",
-      "Accept and store a bcrypt password credential when an account is created.");
+      "Accept and store a bcrypt password credential when an account is created."),
+
+  /** Gates the password-login surface: POST /auth/login, /auth/refresh, /auth/logout. */
+  PASSWORD_LOGIN(
+      "password-login",
+      "Enable the /auth endpoints: password login issuing org-scoped JWT access tokens "
+          + "plus rotating refresh tokens, refresh, and logout. Off means 404."),
+
+  /** Gates deny-by-default auth enforcement on every non-permit-listed path. */
+  AUTH_ENFORCEMENT(
+      "auth-enforcement",
+      "Require a valid JWT bearer token on every endpoint outside the public permit-list "
+          + "(e.g. /api/admin/**). Off preserves the pre-auth behavior.");
 
   private final String toggleName;
   private final String description;
