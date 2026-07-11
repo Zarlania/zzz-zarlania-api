@@ -57,7 +57,9 @@ public class RefreshTokenService {
 
   /**
    * Rotates a refresh token: consumes the presented one and issues a successor in the same family.
-   * Replaying an already-consumed or revoked token revokes the whole family before rejecting.
+   * Consumption is atomic at the database layer, so of concurrent presentations of the same token
+   * exactly one wins; every other caller — including a replay of an already-consumed or revoked
+   * token — revokes the whole family before rejecting.
    *
    * @param rawToken the presented raw refresh token
    * @return the rotation result
@@ -77,8 +79,11 @@ public class RefreshTokenService {
     if (row.getExpiresAt().isBefore(Instant.now())) {
       throw new InvalidRefreshTokenException();
     }
-    row.setConsumedAt(Instant.now());
-    refreshTokenRepository.save(row);
+    if (refreshTokenRepository.consumeIfLive(row.getId(), Instant.now()) == 0) {
+      // Lost a race to a concurrent presentation of the same token: treat as replay.
+      revokeFamily(row.getFamilyId());
+      throw new InvalidRefreshTokenException();
+    }
     String successor = storeNewToken(row.getUserId(), row.getOrganizationId(), row.getFamilyId());
     return new RefreshRotation(successor, row.getUserId(), row.getOrganizationId());
   }

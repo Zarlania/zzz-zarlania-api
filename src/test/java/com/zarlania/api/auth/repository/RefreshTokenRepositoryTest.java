@@ -81,6 +81,21 @@ class RefreshTokenRepositoryTest extends AbstractIntegrationTest {
   }
 
   @Test
+  void consumeIfLiveConsumesExactlyOnceAndSkipsRevokedRows() {
+    UUID userId = persistUser();
+    UUID organizationId = persistOrganization();
+    RefreshTokenEntity live =
+        refreshTokenRepository.saveAndFlush(newToken(userId, organizationId, "g".repeat(64)));
+    RefreshTokenEntity revoked = newToken(userId, organizationId, "h".repeat(64));
+    revoked.setRevokedAt(Instant.now());
+    revoked = refreshTokenRepository.saveAndFlush(revoked);
+
+    assertThat(refreshTokenRepository.consumeIfLive(live.getId(), Instant.now())).isEqualTo(1);
+    assertThat(refreshTokenRepository.consumeIfLive(live.getId(), Instant.now())).isZero();
+    assertThat(refreshTokenRepository.consumeIfLive(revoked.getId(), Instant.now())).isZero();
+  }
+
+  @Test
   void rejectsDuplicateTokenHash() {
     UUID userId = persistUser();
     UUID organizationId = persistOrganization();
