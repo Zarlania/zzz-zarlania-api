@@ -1,5 +1,8 @@
 package com.zarlania.api.web;
 
+import com.zarlania.api.auth.exception.InvalidCredentialsException;
+import com.zarlania.api.auth.exception.InvalidRefreshTokenException;
+import com.zarlania.api.auth.exception.PasswordLoginDisabledException;
 import com.zarlania.api.features.exception.FeatureToggleNotFoundException;
 import com.zarlania.api.identity.exception.PasswordCredentialAlreadyExistsException;
 import com.zarlania.api.logging.LogSanitizer;
@@ -112,6 +115,24 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     return notFound("No organization exists with the given id");
   }
 
+  /** Login failed: generic 401; the detail never says whether the account exists. */
+  @ExceptionHandler(InvalidCredentialsException.class)
+  ProblemDetail handleInvalidCredentials(InvalidCredentialsException ex) {
+    return unauthorized("Invalid email or password");
+  }
+
+  /** Refresh token unknown/expired/revoked/replayed: generic 401. */
+  @ExceptionHandler(InvalidRefreshTokenException.class)
+  ProblemDetail handleInvalidRefreshToken(InvalidRefreshTokenException ex) {
+    return unauthorized("Invalid or expired refresh token");
+  }
+
+  /** The password-login toggle is off: the /auth surface does not exist yet (404). */
+  @ExceptionHandler(PasswordLoginDisabledException.class)
+  ProblemDetail handlePasswordLoginDisabled(PasswordLoginDisabledException ex) {
+    return notFound("Resource not found");
+  }
+
   /**
    * Builds a 409 {@link ProblemDetail} from a fixed, safe detail and logs the conflict at INFO.
    * Conflicts are expected outcomes of concurrent sign-ups, so INFO (not WARN) gives visibility
@@ -130,5 +151,15 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
   private static ProblemDetail notFound(String detail) {
     log.info("Request rejected (404 Not Found): {}", LogSanitizer.forLog(detail));
     return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, detail);
+  }
+
+  /**
+   * Builds a 401 {@link ProblemDetail} from a fixed, safe detail and logs at INFO. Failed logins
+   * are expected traffic; the fixed detail keeps credentials and account existence out of responses
+   * and logs.
+   */
+  private static ProblemDetail unauthorized(String detail) {
+    log.info("Request rejected (401 Unauthorized): {}", LogSanitizer.forLog(detail));
+    return ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, detail);
   }
 }
