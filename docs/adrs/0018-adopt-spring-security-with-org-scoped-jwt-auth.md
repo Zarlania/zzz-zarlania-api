@@ -87,8 +87,9 @@ decoding.
 
 ### Dependencies
 
-Two starters are adopted: `spring-boot-starter-security` (the filter chain, authentication
-model, and `PasswordEncoder` abstraction identity credentials already used per ADR-0017) and
+Two starters are adopted: `spring-boot-starter-security` (the filter chain and authentication
+model; it also transitively provides the `PasswordEncoder` abstraction ADR-0017 already
+depended on directly via `spring-security-crypto`, which remains an explicit dependency) and
 `spring-boot-starter-oauth2-resource-server` (bearer-token resource-server support, and the
 Nimbus JOSE library it bundles for JWT encoding and decoding). No separate JWT library is
 added — `JwtEncoder`/`JwtDecoder` beans built on Nimbus classes are the only JWT machinery in
