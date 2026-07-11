@@ -35,4 +35,14 @@ public class FeatureToggleEntity extends Auditable {
   @Setter
   @Column(name = "percentage", nullable = false)
   private int percentage;
+
+  /**
+   * Human-readable description, code-owned (the {@code Feature} enum) and written only by the
+   * startup synchronizer. Defaults to empty string — the pre-sync placeholder that mirrors the
+   * migration's {@code DEFAULT ''} — so an entity persisted before its description is set (e.g. in
+   * a test) never violates the {@code NOT NULL} column.
+   */
+  @Setter
+  @Column(name = "description", nullable = false, length = 500)
+  private String description = "";
 }

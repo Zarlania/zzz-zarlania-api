@@ -19,14 +19,16 @@ public class IdentityController {
   private final IdentityService identityService;
 
   /**
-   * Creates an account: a user and their personal organization.
+   * Creates an account: a user, their personal organization, and (when the password-accounts
+   * feature is enabled) a password credential.
    *
    * @param request the validated account-creation payload
    * @return {@code 201 Created} with the created {@link Account}
    */
   @PostMapping("/accounts")
   public ResponseEntity<Account> createAccount(@Valid @RequestBody CreateAccountRequest request) {
-    Account account = identityService.createAccount(request.email(), request.username());
+    Account account =
+        identityService.createAccount(request.email(), request.username(), request.password());
     return ResponseEntity.status(HttpStatus.CREATED).body(account);
   }
 }

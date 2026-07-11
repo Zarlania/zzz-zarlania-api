@@ -11,6 +11,12 @@ deploy to production at <https://api.zarlania.com>.** Work carefully.
   supersedes it. See `docs/adrs/0001-record-architecture-decisions.md`.
 - **Every change ties to a GitHub issue.** Branch `type/<issue#>-slug`; PR title
   references `#<issue>`.
+- **Every behavior change ships behind a feature toggle.** New or changed user-observable
+  behavior must be gated (see ADR-0016). Reuse an existing `Feature` toggle when one covers
+  the change — check `Feature` descriptions first — and add a new constant only when none
+  fits. Remove a toggle's constant once its feature is permanent. Carve-outs: pure refactors,
+  docs/ADRs, build/CI/tooling, the toggle machinery itself, and additive scaffolding
+  migrations.
 
 ## Stack
 

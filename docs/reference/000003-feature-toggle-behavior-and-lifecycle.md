@@ -6,7 +6,7 @@ tags:
 - architecture
 - domain-model
 created: '2026-07-09'
-updated: '2026-07-09'
+updated: '2026-07-10'
 related:
 - ADR-0014
 - ADR-0015
@@ -23,7 +23,7 @@ related:
 | Description | How feature toggles are registered, evaluated, and fail safe — lifecycle, percentage/organization-override rules, and trace-pinned decisions. |
 | Tags | architecture, domain-model |
 | Created | 2026-07-09 |
-| Updated | 2026-07-09 |
+| Updated | 2026-07-10 |
 | Related | ADR-0014, ADR-0015, ADR-0010, com.zarlania.api.features |
 <!-- ref-meta:end -->
 
@@ -51,8 +51,17 @@ at `/v3/api-docs` or the admin documentation group described in ADR-0015.
 
 - A toggle is born in code: adding a constant to the `Feature` enum is the only way a toggle
   comes into existence. There is no way to create a toggle through the admin API.
+- Each toggle carries a human-readable description alongside its kebab-case name, and both are
+  code-owned — they live on the `Feature` enum constant, not in any admin-writable state.
 - On the next deploy, a startup synchronizer inserts a row for any enum constant that does not
-  yet have one, default-off (percentage 0, no organization overrides).
+  yet have one, default-off (percentage 0, no organization overrides), including the enum's
+  description. If the description text for an existing toggle's enum constant has changed
+  since the last deploy, the synchronizer updates the stored description to match — it is the
+  only writer of the description; nothing else in the system sets or edits it.
+- Operators can see a toggle's description through the admin API, but only ever read it: there
+  is no route to create, edit, or clear a description independently of the code. Like the
+  toggle's existence itself, its description is born in code and changes only by changing the
+  code.
 - Once deployed, the toggle can be flipped — globally or per organization — only through the
   admin API. The admin API changes state; it never creates or deletes a toggle.
 - When the gated code path becomes permanent (the toggle is no longer needed), the enum
@@ -70,6 +79,11 @@ at `/v3/api-docs` or the admin documentation group described in ADR-0015.
   that percentage — the same caller or organization can land on either side on different
   requests. This makes partial state a deploy safety valve, not a mechanism for consistent
   per-user or per-organization experimentation.
+- Because a partial percentage is a per-request coin flip, a toggle that gates **required
+  user input** (rather than a purely additive dark-launch path) should be treated as on/off,
+  not ramped: at an intermediate percentage the input contract becomes nondeterministic per
+  request — the same submission could have its input honored on one call and ignored on the
+  next. Ramp such a toggle straight from 0 to 100.
 - A decision is pinned to the request's trace id for a bounded time-to-live, so that a single
   inbound request and every internal call it fans out to observe the same outcome for the
   same toggle, even under partial rollout.

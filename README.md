@@ -114,6 +114,9 @@ unlike the immutable ADRs. Author one with `./scripts/ref new --title "<title>" 
    PR. Every merge to `master` cuts one SemVer release and deploys once
    (`./scripts/adr find release` for the rationale).
 5. CI must be green before merge.
+6. Gate new or changed behavior behind a feature toggle (ADR-0016): reuse an existing
+   `Feature` if one fits, otherwise add a constant. Non-behavioral changes (refactors,
+   docs, tooling) are exempt.
 
 ## About `docs/superpowers/`
 

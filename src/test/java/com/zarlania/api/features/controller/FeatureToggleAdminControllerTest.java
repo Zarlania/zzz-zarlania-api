@@ -48,6 +48,7 @@ class FeatureToggleAdminControllerTest {
         .perform(get(BASE + "/" + CANARY))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.name").value(CANARY))
+        .andExpect(jsonPath("$.description").isNotEmpty())
         .andExpect(jsonPath("$.percentage").isNumber())
         .andExpect(jsonPath("$.organizationOverrides").isArray());
   }

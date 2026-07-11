@@ -29,12 +29,25 @@ class IdentityControllerTest {
   @Autowired private UserService userService;
   @Autowired private OrganizationService organizationService;
 
+  @Autowired
+  private com.zarlania.api.features.service.FeatureToggleAdminService featureToggleAdminService;
+
   private static String unique(String prefix) {
     return prefix + UUID.randomUUID().toString().substring(0, 8);
   }
 
   private static String body(String email, String username) {
     return "{\"email\":\"" + email + "\",\"username\":\"" + username + "\"}";
+  }
+
+  private static String bodyWithPassword(String email, String username, String password) {
+    return "{\"email\":\""
+        + email
+        + "\",\"username\":\""
+        + username
+        + "\",\"password\":\""
+        + password
+        + "\"}";
   }
 
   @Test
@@ -128,5 +141,90 @@ class IdentityControllerTest {
                 .content(body(unique("v") + "@example.com", collidingName)))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.detail").value("The requested username is unavailable"));
+  }
+
+  @Test
+  void ignoresPasswordAndUnknownFieldsWhenToggleOff() throws Exception {
+    String username = unique("off");
+    String email = username + "@example.com";
+    String body =
+        "{\"email\":\""
+            + email
+            + "\",\"username\":\""
+            + username
+            + "\",\"password\":\"Str0ng!Pass\",\"nickname\":\"ignored\"}";
+
+    mockMvc
+        .perform(post("/accounts").contentType(MediaType.APPLICATION_JSON).content(body))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.user.username").value(username))
+        .andExpect(jsonPath("$.password").doesNotExist())
+        .andExpect(jsonPath("$.user.password").doesNotExist());
+  }
+
+  @Test
+  void createsAccountWithPasswordWhenToggleOnAndNeverReturnsIt() throws Exception {
+    featureToggleAdminService.setPercentage("password-accounts", 100);
+    String username = unique("on");
+    String email = username + "@example.com";
+
+    mockMvc
+        .perform(
+            post("/accounts")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(bodyWithPassword(email, username, "Str0ng!Pass")))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.user.email").value(email))
+        .andExpect(jsonPath("$.password").doesNotExist())
+        .andExpect(jsonPath("$.user.password").doesNotExist());
+  }
+
+  @Test
+  void rejectsMissingPasswordWhenToggleOn() throws Exception {
+    featureToggleAdminService.setPercentage("password-accounts", 100);
+
+    mockMvc
+        .perform(
+            post("/accounts")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body(unique("m") + "@example.com", unique("m"))))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.detail").value("password is required"));
+  }
+
+  @Test
+  void rejectsWeakPasswordWhenToggleOn() throws Exception {
+    featureToggleAdminService.setPercentage("password-accounts", 100);
+
+    mockMvc
+        .perform(
+            post("/accounts")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(bodyWithPassword(unique("w") + "@example.com", unique("w"), "weak")))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.detail").exists());
+  }
+
+  @Test
+  void validatesPasswordBeforeReportingDuplicateWhenToggleOn() throws Exception {
+    featureToggleAdminService.setPercentage("password-accounts", 100);
+    String email = unique("dupe") + "@example.com";
+    // Seed an account holding this email so the retry below also collides on it.
+    mockMvc
+        .perform(
+            post("/accounts")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(bodyWithPassword(email, unique("s"), "Str0ng!Pass")))
+        .andExpect(status().isCreated());
+
+    // A retry with the same (taken) email AND a weak password must fail fast on the password (400),
+    // not surface the email conflict (409) first — password is validated before any write.
+    mockMvc
+        .perform(
+            post("/accounts")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(bodyWithPassword(email, unique("s"), "weak")))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.detail").exists());
   }
 }

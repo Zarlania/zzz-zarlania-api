@@ -115,6 +115,21 @@ class FeatureToggleRepositoryIntegrationTest extends AbstractIntegrationTest {
         .isEmpty();
   }
 
+  @Test
+  void persistsAndReadsBackDescription() {
+    FeatureToggleEntity toggle = new FeatureToggleEntity();
+    toggle.setName("desc-toggle-" + java.util.UUID.randomUUID());
+    toggle.setPercentage(0);
+    toggle.setDescription("Gates the thing.");
+
+    FeatureToggleEntity saved = featureToggleRepository.saveAndFlush(toggle);
+
+    assertThat(featureToggleRepository.findById(saved.getId()))
+        .get()
+        .extracting(FeatureToggleEntity::getDescription)
+        .isEqualTo("Gates the thing.");
+  }
+
   private FeatureToggleEntity saveToggle(String name, int percentage) {
     FeatureToggleEntity toggle = new FeatureToggleEntity();
     toggle.setName(name);

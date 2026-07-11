@@ -3,7 +3,9 @@ package com.zarlania.api.identity.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.zarlania.api.features.service.FeatureToggleAdminService;
 import com.zarlania.api.identity.dto.Account;
+import com.zarlania.api.identity.repository.PasswordCredentialRepository;
 import com.zarlania.api.organizations.MembershipRole;
 import com.zarlania.api.organizations.OrganizationType;
 import com.zarlania.api.organizations.dto.Membership;
@@ -28,6 +30,8 @@ class IdentityServiceIntegrationTest extends AbstractIntegrationTest {
 
   @Autowired private IdentityService identityService;
   @Autowired private OrganizationService organizationService;
+  @Autowired private FeatureToggleAdminService featureToggleAdminService;
+  @Autowired private PasswordCredentialRepository passwordCredentialRepository;
 
   private static String unique(String prefix) {
     return prefix + UUID.randomUUID().toString().substring(0, 8);
@@ -38,7 +42,7 @@ class IdentityServiceIntegrationTest extends AbstractIntegrationTest {
     String username = unique("user");
     String email = username + "@example.com";
 
-    Account account = identityService.createAccount(email, username);
+    Account account = identityService.createAccount(email, username, null);
 
     assertThat(account.user().id()).isNotNull();
     assertThat(account.user().email()).isEqualTo(email);
@@ -60,18 +64,39 @@ class IdentityServiceIntegrationTest extends AbstractIntegrationTest {
   @Test
   void createAccountRejectsDuplicateEmail() {
     String email = unique("dupemail") + "@example.com";
-    identityService.createAccount(email, unique("name"));
+    identityService.createAccount(email, unique("name"), null);
 
-    assertThatThrownBy(() -> identityService.createAccount(email, unique("name")))
+    assertThatThrownBy(() -> identityService.createAccount(email, unique("name"), null))
         .isInstanceOf(EmailAlreadyExistsException.class);
   }
 
   @Test
   void createAccountRejectsDuplicateUsername() {
     String username = unique("dupname");
-    identityService.createAccount(unique("e") + "@example.com", username);
+    identityService.createAccount(unique("e") + "@example.com", username, null);
 
-    assertThatThrownBy(() -> identityService.createAccount(unique("e") + "@example.com", username))
+    assertThatThrownBy(
+            () -> identityService.createAccount(unique("e") + "@example.com", username, null))
         .isInstanceOf(UsernameAlreadyExistsException.class);
+  }
+
+  @Test
+  void storesPasswordCredentialWhenToggleEnabled() {
+    featureToggleAdminService.setPercentage("password-accounts", 100);
+    String email = unique("pw") + "@example.com";
+
+    var account = identityService.createAccount(email, unique("pw"), "Str0ng!Pass");
+
+    assertThat(passwordCredentialRepository.findByUserId(account.user().id())).isPresent();
+  }
+
+  @Test
+  void storesNoCredentialWhenToggleDisabled() {
+    // Toggle is off by default; a supplied password is ignored.
+    String email = unique("np") + "@example.com";
+
+    var account = identityService.createAccount(email, unique("np"), "Str0ng!Pass");
+
+    assertThat(passwordCredentialRepository.findByUserId(account.user().id())).isEmpty();
   }
 }

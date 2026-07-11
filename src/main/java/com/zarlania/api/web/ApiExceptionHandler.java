@@ -1,6 +1,7 @@
 package com.zarlania.api.web;
 
 import com.zarlania.api.features.exception.FeatureToggleNotFoundException;
+import com.zarlania.api.identity.exception.PasswordCredentialAlreadyExistsException;
 import com.zarlania.api.logging.LogSanitizer;
 import com.zarlania.api.organizations.exception.OrganizationNameAlreadyExistsException;
 import com.zarlania.api.organizations.exception.OrganizationNotFoundException;
@@ -91,6 +92,12 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
   @ExceptionHandler(PersonalOrganizationAlreadyExistsException.class)
   ProblemDetail handlePersonalOrgConflict(PersonalOrganizationAlreadyExistsException ex) {
     return conflict("The user already owns a personal organization");
+  }
+
+  /** Defensive: cannot occur for a brand-new account, but mapped to 409 rather than 500. */
+  @ExceptionHandler(PasswordCredentialAlreadyExistsException.class)
+  ProblemDetail handlePasswordCredentialConflict(PasswordCredentialAlreadyExistsException ex) {
+    return conflict("A password credential already exists for this user");
   }
 
   /** Unknown feature-toggle name in an admin operation: 404. */
