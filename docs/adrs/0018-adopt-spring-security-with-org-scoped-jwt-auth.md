@@ -113,6 +113,15 @@ to opt it *out*, never add a check to opt it in. This retires ADR-0015's "obscur
 security" caveat for `/api/admin/**`: those endpoints now sit behind the same deny-by-default
 rule as everything else, gated by `AUTH_ENFORCEMENT` rather than by path secrecy.
 
+ADR-0015 also anticipated that "when the repo-wide authentication and authorization story
+lands, the admin documentation group (and the endpoints themselves) must be gated by role at
+that point." This ADR explicitly defers that clause: no roles or authorities exist yet — the
+service has authentication (a valid token) but no authorization model above it. The interim
+gate for `/api/admin/**` is deliberately coarse — any valid, authenticated token, the same as
+every other non-permit-listed path — not a product oversight. Role- or authority-scoped gating
+of the admin surface arrives with a future roles/membership story, which will need its own ADR
+to introduce the authorization model this one does not.
+
 Adopting the chain also ships two changes that are always on, not toggle-gated: (a) Spring
 Security's default response headers on every response (`X-Frame-Options: DENY`,
 `X-Content-Type-Options: nosniff`, the `Cache-Control: no-store` family, `X-XSS-Protection:
@@ -229,7 +238,8 @@ tokens.
 - ADR-0011: Keep domains decoupled in code with DB-level integrity (the `auth` domain's DB-FK,
   no-cross-domain-JPA-association shape for `refresh_tokens`)
 - ADR-0015: Admin API surface under /api/admin, excluded from public OpenAPI (this ADR
-  retires its "obscurity, not security" caveat for `/api/admin/**`)
+  retires its "obscurity, not security" caveat for `/api/admin/**`, and explicitly defers its
+  anticipated role-gating clause until a future roles/membership story)
 - ADR-0016: Gate every behavior change behind a feature toggle (`PASSWORD_LOGIN` and
   `AUTH_ENFORCEMENT`)
 - Issue #75: login/auth implementation

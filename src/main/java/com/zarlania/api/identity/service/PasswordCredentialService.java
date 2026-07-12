@@ -83,8 +83,10 @@ public class PasswordCredentialService {
    * Verifies a raw password against the user's stored credential — the seam ADR-0017 anticipated
    * for authentication.
    *
-   * @param userId the claimed user's id; may be null (unknown account), in which case a dummy
-   *     verification still runs and the result is {@code false}
+   * @param userId the claimed user's id; may be null (unknown account), in which case the lookup
+   *     runs against a random id and a dummy verification still runs, so the null-userId path costs
+   *     the same one indexed lookup plus one Argon2 comparison as a known user — no residual timing
+   *     signal distinguishes an unknown email from a known one
    * @param rawPassword the presented password
    * @return whether the password matches the user's stored credential
    */
@@ -94,13 +96,11 @@ public class PasswordCredentialService {
       return false;
     }
     String storedHash =
-        userId == null
-            ? null
-            : passwordCredentialRepository
-                .findByUserId(userId)
-                .map(PasswordCredentialEntity::getPasswordHash)
-                .orElse(null);
-    if (storedHash == null) {
+        passwordCredentialRepository
+            .findByUserId(userId == null ? UUID.randomUUID() : userId)
+            .map(PasswordCredentialEntity::getPasswordHash)
+            .orElse(null);
+    if (userId == null || storedHash == null) {
       passwordEncoder.matches(rawPassword, absentCredentialHash);
       return false;
     }

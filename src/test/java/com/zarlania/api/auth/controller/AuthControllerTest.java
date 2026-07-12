@@ -195,6 +195,30 @@ class AuthControllerTest {
   }
 
   @Test
+  void loginRejectsAnOversizedPassword() throws Exception {
+    String tooLong = "a".repeat(513);
+    mockMvc
+        .perform(
+            post("/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\":\"" + email + "\",\"password\":\"" + tooLong + "\"}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors.password").exists());
+  }
+
+  @Test
+  void refreshRejectsAnOversizedToken() throws Exception {
+    String tooLong = "a".repeat(513);
+    mockMvc
+        .perform(
+            post("/auth/refresh")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"refreshToken\":\"" + tooLong + "\"}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors.refreshToken").exists());
+  }
+
+  @Test
   void responsesNeverEchoThePassword() throws Exception {
     MvcResult result = login(email, PASSWORD);
     org.assertj.core.api.Assertions.assertThat(result.getResponse().getContentAsString())

@@ -89,6 +89,9 @@ class PasswordCredentialServiceIntegrationTest extends AbstractIntegrationTest {
 
   @Test
   void verifyRejectsNullUserWithoutThrowing() {
+    // The null-userId branch performs a repository lookup against a random id (to equalize work
+    // with the known-user path, closing a residual timing signal) before the dummy Argon2
+    // comparison; behavior is unchanged.
     assertThat(passwordCredentialService.verify(null, "Str0ng!Pass")).isFalse();
   }
 

@@ -125,7 +125,12 @@ public class RefreshTokenService {
   }
 
   private void revokeFamily(UUID familyId) {
-    refreshTokenRepository.revokeFamily(familyId, Instant.now());
+    // Loop until a pass revokes nothing: a successor minted concurrently with an earlier pass
+    // (after that statement's snapshot) is caught by the next pass, so no live row can escape
+    // a family revocation. Terminates because rotation cannot mint from a revoked row.
+    while (refreshTokenRepository.revokeFamily(familyId, Instant.now()) > 0) {
+      // The next iteration re-evaluates against the newest committed state.
+    }
   }
 
   private static String sha256Hex(String rawToken) {

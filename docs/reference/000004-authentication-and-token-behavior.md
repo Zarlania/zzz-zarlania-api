@@ -95,7 +95,17 @@ does **not** describe endpoint shapes, request/response bodies, or status codes 
 
 - While `PASSWORD_LOGIN` is off, the entire `/auth` surface (`/auth/login`, `/auth/refresh`,
   `/auth/logout`) responds `404`, indistinguishable from a route that does not exist — no
-  distinct "feature disabled" response is returned.
+  distinct "feature disabled" response is returned. This hiding is best-effort, not absolute: a
+  request that fails MVC binding or method matching before the toggle check runs — a malformed
+  body, the wrong HTTP verb, or the wrong content type — surfaces its ordinary `400`/`405`/`415`
+  rather than the toggle's `404`. Full filter-level hiding (rejecting those requests as `404` too)
+  is tracked in issue #81.
+- On the default in-memory database, a restart resets every toggle to `0` — including
+  `AUTH_ENFORCEMENT` — since toggle state is not yet durable (issue #81). Enforcement must be
+  re-applied after every restart, or the API silently reopens with no token required anywhere.
+  Today a restart also wipes every account and refresh token, so in practice nothing the toggle
+  was protecting outlives the restart either — but this stops being true the moment persistent
+  storage lands, and durable toggle state must land no later than that point.
 - While `AUTH_ENFORCEMENT` is off, every path outside the permit-list is open — no token is
   required anywhere, matching the service's pre-auth behavior. Once `AUTH_ENFORCEMENT` is on,
   every non-permit-listed path requires a valid, authenticated bearer JWT.

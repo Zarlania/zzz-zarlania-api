@@ -51,7 +51,10 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshTokenEntity
   /**
    * Atomically revokes every not-yet-revoked row in a token family in a single bulk {@code UPDATE}
    * — the durable stolen-token tripwire's family-wide revocation, without a read-then-write per
-   * row.
+   * row. Under {@code READ COMMITTED}, a successor row inserted by a concurrent rotation after this
+   * statement's snapshot is taken is not covered by that single {@code UPDATE}; the caller (see
+   * {@code RefreshTokenService#revokeFamily}) therefore calls this in a loop until a pass revokes 0
+   * rows, so no live row can escape a family revocation.
    *
    * @param familyId the family id shared across rotations
    * @param now the revocation timestamp
