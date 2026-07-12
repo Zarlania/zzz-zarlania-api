@@ -102,8 +102,9 @@ no `HttpSession` is ever created. CSRF protection is disabled: CSRF defends a br
 riding on a cookie, and this API issues no cookie and holds no session for a cross-site
 request to exploit. Every request is `authorizeHttpRequests`-checked; an explicit permit-list
 covers the surface that must stay reachable without a token — account signup (`POST
-/accounts`), the entire `/auth/**` token surface (login mints the first token), the public
-OpenAPI documents and Swagger UI (ADR-0003), actuator `health`/`info` (ADR-0002), and CORS
+/accounts`), the token-issuing endpoints (`POST /auth/login`, `POST /auth/refresh`, `POST
+/auth/logout` — login mints the first token), the public OpenAPI documents and Swagger UI
+(ADR-0003), actuator `health`/`info` (ADR-0002), and CORS
 preflight (`OPTIONS` on every path, since a browser's preflight carries no bearer token to
 check). Every other path — present and future — falls to a toggle-aware authorization rule
 that requires a valid authenticated JWT once `AUTH_ENFORCEMENT` is on. A newly added endpoint

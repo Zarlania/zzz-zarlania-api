@@ -79,6 +79,16 @@ class SecurityFilterChainTest {
   }
 
   @Test
+  void authPermitListIsScopedToMethodAndExactPathWhenEnforcementOn() throws Exception {
+    // The /auth permit-list is POST /auth/login, /auth/refresh, /auth/logout only — any other
+    // method or path under /auth/** is NOT permit-listed and falls to the toggle-aware
+    // enforcement rule like every other endpoint, born protected.
+    enforcementOn();
+    mockMvc.perform(get("/auth/login")).andExpect(status().isUnauthorized());
+    mockMvc.perform(post("/auth/does-not-exist")).andExpect(status().isUnauthorized());
+  }
+
+  @Test
   void errorDispatchStaysOpenWhenEnforcementOn() throws Exception {
     // An unhandled exception on a permit-listed anonymous endpoint forwards to /error as an
     // ERROR dispatch; it must never be authenticated, or a 500 masquerades as a 401. Boot's

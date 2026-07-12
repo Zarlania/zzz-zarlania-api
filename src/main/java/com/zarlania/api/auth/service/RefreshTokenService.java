@@ -125,15 +125,7 @@ public class RefreshTokenService {
   }
 
   private void revokeFamily(UUID familyId) {
-    Instant now = Instant.now();
-    refreshTokenRepository
-        .findByFamilyId(familyId)
-        .forEach(
-            member -> {
-              if (member.getRevokedAt() == null) {
-                member.setRevokedAt(now);
-              }
-            });
+    refreshTokenRepository.revokeFamily(familyId, Instant.now());
   }
 
   private static String sha256Hex(String rawToken) {

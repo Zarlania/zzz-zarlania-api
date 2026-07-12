@@ -20,10 +20,11 @@ import org.springframework.security.web.SecurityFilterChain;
 
 /**
  * The stateless, deny-by-default security chain (see the org-scoped JWT auth ADR). An explicit
- * permit-list covers the public surface — signup, the /auth token endpoints, the public OpenAPI
- * docs (ADR-0003), and actuator health/info (ADR-0002); every other path, present or future, is
- * guarded by {@link ToggleAwareAuthorizationManager}, so new endpoints are born protected and are
- * opted <em>out</em> of auth, never bolted on.
+ * permit-list covers the public surface — signup, the POST /auth/login, /auth/refresh, and
+ * /auth/logout token endpoints, the public OpenAPI docs (ADR-0003), and actuator health/info
+ * (ADR-0002); every other path, present or future — including any other method or future path under
+ * /auth/** — is guarded by {@link ToggleAwareAuthorizationManager}, so new endpoints are born
+ * protected and are opted <em>out</em> of auth, never bolted on.
  *
  * <p>CSRF protection is disabled deliberately: the API is a pure bearer-token surface with {@code
  * STATELESS} session policy — no session, no cookie, nothing for a cross-site request to ride.
@@ -70,7 +71,8 @@ public class SecurityConfig {
                       .permitAll()
                       .requestMatchers(HttpMethod.POST, "/accounts")
                       .permitAll()
-                      .requestMatchers("/auth/**")
+                      .requestMatchers(
+                          HttpMethod.POST, "/auth/login", "/auth/refresh", "/auth/logout")
                       .permitAll()
                       .requestMatchers(
                           "/v3/api-docs",

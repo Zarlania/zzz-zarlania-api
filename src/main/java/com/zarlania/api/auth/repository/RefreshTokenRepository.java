@@ -47,4 +47,19 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshTokenEntity
       "update RefreshTokenEntity t set t.consumedAt = :now "
           + "where t.id = :id and t.consumedAt is null and t.revokedAt is null")
   int consumeIfLive(@Param("id") UUID id, @Param("now") Instant now);
+
+  /**
+   * Atomically revokes every not-yet-revoked row in a token family in a single bulk {@code UPDATE}
+   * — the durable stolen-token tripwire's family-wide revocation, without a read-then-write per
+   * row.
+   *
+   * @param familyId the family id shared across rotations
+   * @param now the revocation timestamp
+   * @return the number of rows revoked by this call
+   */
+  @Modifying
+  @Query(
+      "update RefreshTokenEntity t set t.revokedAt = :now "
+          + "where t.familyId = :familyId and t.revokedAt is null")
+  int revokeFamily(@Param("familyId") UUID familyId, @Param("now") Instant now);
 }

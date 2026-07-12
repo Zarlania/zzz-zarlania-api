@@ -55,7 +55,10 @@ environment as needed.
 One environment variable **is** required to boot: `ZARLANIA_AUTH_JWT_SIGNING_SECRET`, the
 HS256 secret used to sign and verify access tokens (at least 32 bytes). The app fails fast at
 startup without it. Generate one with `openssl rand -base64 48` and set it in Render's
-environment variables and your local `.env` (git-ignored) — never in a committed file.
+environment variables and your local `.env` (git-ignored) — never in a committed file. Note
+that `docker compose` reads `.env` automatically, but plain `./mvnw spring-boot:run` does
+not — export it in your shell first (e.g. `export ZARLANIA_AUTH_JWT_SIGNING_SECRET=...`, or
+source your `.env` file) before running Maven.
 
 ## Finding the API
 
