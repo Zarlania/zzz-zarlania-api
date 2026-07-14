@@ -1,6 +1,5 @@
 package com.zarlania.api.identity.service;
 
-import java.nio.charset.StandardCharsets;
 import org.springframework.stereotype.Component;
 
 /**
@@ -13,15 +12,16 @@ import org.springframework.stereotype.Component;
 public class PasswordPolicy {
 
   private static final int MIN_LENGTH = 8;
-  private static final int MAX_BYTES = 72;
+  private static final int MAX_LENGTH = 128;
 
   /**
    * Validates the given raw password.
    *
    * @param rawPassword the caller-supplied password
-   * @throws IllegalArgumentException if the password is null, blank, fewer than 8 characters
-   *     (Unicode code points), longer than 72 bytes, or missing an uppercase letter, lowercase
-   *     letter, digit, or symbol
+   * @throws IllegalArgumentException if the password is null, blank, fewer than 8 characters or
+   *     more than 128 characters (Unicode code points — Argon2 does not truncate, so this ceiling
+   *     is a policy choice rather than an algorithm limitation), or missing an uppercase letter,
+   *     lowercase letter, digit, or symbol
    */
   public void validate(String rawPassword) {
     if (rawPassword == null || rawPassword.isBlank()) {
@@ -33,8 +33,8 @@ public class PasswordPolicy {
     if (rawPassword.codePointCount(0, rawPassword.length()) < MIN_LENGTH) {
       throw new IllegalArgumentException("password must be at least " + MIN_LENGTH + " characters");
     }
-    if (rawPassword.getBytes(StandardCharsets.UTF_8).length > MAX_BYTES) {
-      throw new IllegalArgumentException("password must be at most " + MAX_BYTES + " bytes");
+    if (rawPassword.codePointCount(0, rawPassword.length()) > MAX_LENGTH) {
+      throw new IllegalArgumentException("password must be at most " + MAX_LENGTH + " characters");
     }
     boolean hasUpper = false;
     boolean hasLower = false;

@@ -38,4 +38,17 @@
     <Bug pattern="SERVLET_HEADER"/>
   </Match>
 
+  <!--
+    FindSecBugs SPRING_CSRF_PROTECTION_DISABLED: csrf().disable() in SecurityConfig is
+    deliberate — the chain is SessionCreationPolicy.STATELESS with bearer-token auth only,
+    so no session cookie exists for a cross-site request to ride (the precondition for
+    CSRF). The detector cannot see the session policy. Compensating test:
+    SecurityFilterChainTest.responsesAreStatelessNoSessionCookieEverIssued. Scoped to
+    SecurityConfig only — any future chain change gets a fresh review. See issue #79.
+  -->
+  <Match>
+    <Class name="com.zarlania.api.auth.config.SecurityConfig"/>
+    <Bug pattern="SPRING_CSRF_PROTECTION_DISABLED"/>
+  </Match>
+
 </FindBugsFilter>

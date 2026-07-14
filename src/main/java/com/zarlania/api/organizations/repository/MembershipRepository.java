@@ -50,4 +50,16 @@ public interface MembershipRepository extends JpaRepository<MembershipEntity, UU
    */
   boolean existsByUserIdAndRoleAndOrganizationType(
       UUID userId, MembershipRole role, OrganizationType type);
+
+  /**
+   * Finds the user's membership with the given role in an organization of the given type — used to
+   * resolve a user's personal organization (at most one exists, by invariant).
+   *
+   * @param userId the user id
+   * @param role the membership role to match
+   * @param type the organization type to match
+   * @return the membership, if one exists
+   */
+  Optional<MembershipEntity> findFirstByUserIdAndRoleAndOrganizationType(
+      UUID userId, MembershipRole role, OrganizationType type);
 }

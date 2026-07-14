@@ -12,4 +12,5 @@ registry or doc whose tags are not sorted.
 | --- | --- |
 | architecture | System structure, boundaries, and cross-domain conventions |
 | domain-model | Domain entities, relationships, and invariants |
+| security | Security model and controls (authN/authZ, secrets, exposure) |
 | testing | Test strategy, layering, and conventions |

@@ -37,14 +37,14 @@ class PasswordCredentialServiceIntegrationTest extends AbstractIntegrationTest {
   }
 
   @Test
-  void storesTheBcryptHashThatVerifiesAndIsNotThePlaintext() {
+  void storesTheArgon2HashThatVerifiesAndIsNotThePlaintext() {
     User user = newUser();
     String raw = "Str0ng!Pass";
 
     passwordCredentialService.create(user.id(), raw);
 
     var stored = passwordCredentialRepository.findByUserId(user.id()).orElseThrow();
-    assertThat(stored.getPasswordHash()).startsWith("{bcrypt}").isNotEqualTo(raw);
+    assertThat(stored.getPasswordHash()).startsWith("{argon2}").isNotEqualTo(raw);
     assertThat(passwordEncoder.matches(raw, stored.getPasswordHash())).isTrue();
   }
 
@@ -65,5 +65,40 @@ class PasswordCredentialServiceIntegrationTest extends AbstractIntegrationTest {
 
     assertThatExceptionOfType(PasswordCredentialAlreadyExistsException.class)
         .isThrownBy(() -> passwordCredentialService.create(user.id(), "An0ther!Pass"));
+  }
+
+  @Test
+  void verifyAcceptsTheCorrectPassword() {
+    User user = newUser();
+    passwordCredentialService.create(user.id(), "Str0ng!Pass");
+    assertThat(passwordCredentialService.verify(user.id(), "Str0ng!Pass")).isTrue();
+  }
+
+  @Test
+  void verifyRejectsWrongPassword() {
+    User user = newUser();
+    passwordCredentialService.create(user.id(), "Str0ng!Pass");
+    assertThat(passwordCredentialService.verify(user.id(), "Wr0ng!Pass")).isFalse();
+  }
+
+  @Test
+  void verifyRejectsUserWithoutCredential() {
+    User user = newUser();
+    assertThat(passwordCredentialService.verify(user.id(), "Str0ng!Pass")).isFalse();
+  }
+
+  @Test
+  void verifyRejectsNullUserWithoutThrowing() {
+    // The null-userId branch performs a repository lookup against a random id (to equalize work
+    // with the known-user path, closing a residual timing signal) before the dummy Argon2
+    // comparison; behavior is unchanged.
+    assertThat(passwordCredentialService.verify(null, "Str0ng!Pass")).isFalse();
+  }
+
+  @Test
+  void verifyRejectsBlankPassword() {
+    User user = newUser();
+    passwordCredentialService.create(user.id(), "Str0ng!Pass");
+    assertThat(passwordCredentialService.verify(user.id(), "  ")).isFalse();
   }
 }
